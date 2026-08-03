@@ -796,125 +796,140 @@ const commands = [
   { name: 'Duplicate Slide', shortcut: '⌘D', action: () => window.app.duplicateSlide() },
 ];
 
-// ─── Homescreen Overlay Dashboard ──────────────────────────────────
+// ─── PowerPoint Backstage Start View ──────────────────────────────
 function renderHomescreen() {
+  const activeTab = state.homescreenTab || 'home';
+
   return `
     <div class="homescreen-overlay">
-      <div class="homescreen-container">
-        <!-- Brand Header -->
-        <div class="homescreen-header">
-          <div class="homescreen-brand">
-            <img class="homescreen-logo" src="/logo.png" alt="open-pptx logo" />
-            <div>
-              <h1 class="homescreen-title">open-pptx</h1>
-              <p class="homescreen-subtitle">Professional Presentation Studio & AI Deck Engine</p>
-            </div>
-          </div>
-          <button class="homescreen-close-btn" onclick="window.app.closeHomescreen()">
-            Open Editor →
+      <!-- PowerPoint Left Navigation Rail -->
+      <div class="pptx-nav-rail">
+        <div class="pptx-nav-brand">
+          <img class="pptx-nav-logo" src="/logo.png" alt="open-pptx logo" />
+          <span class="pptx-nav-app-name">PowerPoint</span>
+        </div>
+
+        <div class="pptx-nav-menu">
+          <button class="pptx-nav-item ${activeTab === 'home' ? 'active' : ''}" onclick="window.app.setHomescreenTab('home')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            <span>Home</span>
+          </button>
+          <button class="pptx-nav-item ${activeTab === 'new' ? 'active' : ''}" onclick="window.app.newDeck()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>New</span>
+          </button>
+          <button class="pptx-nav-item" onclick="window.app.openFile()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            <span>Open</span>
           </button>
         </div>
 
-        <!-- AI Hero Prompt Input -->
-        <div class="homescreen-ai-hero">
-          <div class="homescreen-ai-hero-title">Generate Presentation</div>
-          <div class="homescreen-ai-input-box">
-            <input class="homescreen-ai-input" id="homescreenAIInput" type="text"
-                   placeholder="Enter presentation topic or paste outline (e.g. Seed-stage SaaS pitch deck)..."
+        <div class="pptx-nav-footer">
+          <button class="pptx-nav-item editor-link" onclick="window.app.closeHomescreen()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+            <span>Editor →</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Main PowerPoint Start Content -->
+      <div class="pptx-start-content">
+        <div class="pptx-start-header">
+          <h2>Good day</h2>
+          <div class="pptx-search-box">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input class="pptx-search-input" id="homescreenAIInput" type="text"
+                   placeholder="Search templates or enter AI presentation prompt..."
                    onkeydown="if(event.key==='Enter') window.app.submitHomescreenAIPrompt()" />
-            <button class="homescreen-ai-send-btn" onclick="window.app.submitHomescreenAIPrompt()">
-              Generate
+            <button class="pptx-ai-gen-btn" onclick="window.app.submitHomescreenAIPrompt()">
+              Generate with AI
             </button>
           </div>
         </div>
 
-        <!-- Starter Templates -->
-        <div class="homescreen-section">
-          <div class="homescreen-section-title">Presentation Templates</div>
-          <div class="homescreen-templates-grid">
-            <div class="template-card" onclick="window.app.useTemplate('pitch')">
-              <div class="template-icon-svg">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.71.19-1.81-.47-2.47l-2.06-2.06c-.66-.66-1.76-1.18-2.47-.47z"/><path d="M12 15l-3-3m5.5-2.5l-3-3M21.5 2.5s-4.5.5-8.5 4.5l-6 6c-.8.8-.8 2 0 2.8l3.7 3.7c.8.8 2 .8 2.8 0l6-6c4-4 4.5-8.5 4.5-8.5z"/></svg>
+        <!-- Templates Grid (Slide Thumbnails) -->
+        <div class="pptx-templates-section">
+          <div class="pptx-section-header">
+            <h3>New Presentation</h3>
+          </div>
+          <div class="pptx-templates-grid">
+            <!-- Blank Presentation Card -->
+            <div class="pptx-template-card blank" onclick="window.app.newDeck()">
+              <div class="pptx-slide-preview blank-preview">
+                <div class="blank-plus">+</div>
               </div>
-              <div class="template-name">Pitch Deck</div>
-              <div class="template-desc">Title, Problem, Solution, Model & Team Overview</div>
+              <div class="pptx-template-title">Blank Presentation</div>
             </div>
-            <div class="template-card" onclick="window.app.useTemplate('roadmap')">
-              <div class="template-icon-svg">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+
+            <!-- Pitch Deck -->
+            <div class="pptx-template-card" onclick="window.app.useTemplate('pitch')">
+              <div class="pptx-slide-preview pitch-preview">
+                <div class="mini-slide-title">Startup Pitch</div>
+                <div class="mini-slide-sub">Problem & Solution</div>
               </div>
-              <div class="template-name">Product Strategy</div>
-              <div class="template-desc">Vision, Milestones, Feature Matrix & KPIs</div>
+              <div class="pptx-template-title">Pitch Deck</div>
             </div>
-            <div class="template-card" onclick="window.app.useTemplate('architecture')">
-              <div class="template-icon-svg">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+
+            <!-- Product Strategy -->
+            <div class="pptx-template-card" onclick="window.app.useTemplate('roadmap')">
+              <div class="pptx-slide-preview strategy-preview">
+                <div class="mini-slide-title">Product Strategy</div>
+                <div class="mini-slide-sub">Roadmap & KPIs</div>
               </div>
-              <div class="template-name">System Architecture</div>
-              <div class="template-desc">Overview, Infrastructure, Data Flow & Security</div>
+              <div class="pptx-template-title">Product Roadmap</div>
             </div>
-            <div class="template-card" onclick="window.app.useTemplate('qbr')">
-              <div class="template-icon-svg">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+
+            <!-- Technical Architecture -->
+            <div class="pptx-template-card" onclick="window.app.useTemplate('architecture')">
+              <div class="pptx-slide-preview tech-preview">
+                <div class="mini-slide-title">Architecture</div>
+                <div class="mini-slide-sub">System Components</div>
               </div>
-              <div class="template-name">Executive Summary</div>
-              <div class="template-desc">Performance Metrics, Revenue & Strategic Goals</div>
+              <div class="pptx-template-title">System Architecture</div>
+            </div>
+
+            <!-- Executive Summary -->
+            <div class="pptx-template-card" onclick="window.app.useTemplate('qbr')">
+              <div class="pptx-slide-preview qbr-preview">
+                <div class="mini-slide-title">Quarterly Review</div>
+                <div class="mini-slide-sub">Executive Summary</div>
+              </div>
+              <div class="pptx-template-title">Executive Summary</div>
             </div>
           </div>
         </div>
 
-        <!-- Recent Presentations & Actions -->
-        <div class="homescreen-bottom-grid">
-          <div class="homescreen-section">
-            <div class="homescreen-section-header">
-              <div class="homescreen-section-title">Recent Files</div>
-              <button class="homescreen-action-link" onclick="window.app.openFile()">Browse File System →</button>
-            </div>
-            ${(state.recentDecks && state.recentDecks.length > 0) ? `
-              <div class="recents-list">
-                ${state.recentDecks.map(item => `
-                  <div class="recent-item" onclick="window.app.openRecentFile('${escapeHtml(item.path)}')">
-                    <div class="recent-item-icon-svg">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
-                    </div>
-                    <div class="recent-item-info">
-                      <div class="recent-item-title">${escapeHtml(item.title || item.path.split('/').pop())}</div>
-                      <div class="recent-item-path">${escapeHtml(item.path)}</div>
-                    </div>
-                    <div class="recent-item-date">${escapeHtml(item.modified || '')}</div>
+        <!-- Recent Files Section -->
+        <div class="pptx-recent-section">
+          <div class="pptx-section-header">
+            <h3>Recent</h3>
+            <button class="pptx-link-btn" onclick="window.app.openFile()">Open File Dialog...</button>
+          </div>
+
+          ${(state.recentDecks && state.recentDecks.length > 0) ? `
+            <div class="pptx-recent-table">
+              <div class="pptx-table-header">
+                <span class="col-name">Name</span>
+                <span class="col-location">Location</span>
+                <span class="col-date">Date Modified</span>
+              </div>
+              ${state.recentDecks.map(item => `
+                <div class="pptx-table-row" onclick="window.app.openRecentFile('${escapeHtml(item.path)}')">
+                  <div class="col-name">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C43E1C" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+                    <span>${escapeHtml(item.title || item.path.split('/').pop())}</span>
                   </div>
-                `).join('')}
-              </div>
-            ` : `
-              <div class="recents-empty">
-                <span>No recent files</span>
-                <button class="recents-empty-btn" onclick="window.app.openFile()">Open File</button>
-              </div>
-            `}
-          </div>
-
-          <!-- Quick Actions Panel -->
-          <div class="homescreen-quick-actions">
-            <div class="homescreen-section-title">Quick Actions</div>
-            <button class="quick-action-btn" onclick="window.app.newDeck()">
-              <div class="quick-action-icon-svg">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              </div>
-              <div>
-                <div class="quick-action-title">New Presentation</div>
-                <div class="quick-action-desc">Start with a blank 16:9 canvas</div>
-              </div>
-            </button>
-            <button class="quick-action-btn" onclick="window.app.openFile()">
-              <div class="quick-action-icon-svg">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-              </div>
-              <div>
-                <div class="quick-action-title">Open File</div>
-                <div class="quick-action-desc">Load .opptx or .json presentation</div>
-              </div>
-            </button>
-          </div>
+                  <div class="col-location" title="${escapeHtml(item.path)}">${escapeHtml(item.path)}</div>
+                  <div class="col-date">${escapeHtml(item.modified || 'Recent')}</div>
+                </div>
+              `).join('')}
+            </div>
+          ` : `
+            <div class="pptx-recent-empty">
+              <span>No recent presentations found</span>
+              <button class="pptx-btn-secondary" onclick="window.app.openFile()">Open File...</button>
+            </div>
+          `}
         </div>
       </div>
     </div>
@@ -1362,7 +1377,11 @@ function escapeHtml(str) {
 
 // ─── Public API (window.app) ───────────────────────────────────────
 window.app = {
-  // Homescreen actions
+  setHomescreenTab(tab) {
+    state.homescreenTab = tab;
+    renderAppShell();
+  },
+
   openHomescreen() {
     state.showHomescreen = true;
     renderAppShell();
