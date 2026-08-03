@@ -307,32 +307,79 @@ func (a *App) GetFilePath() string {
 
 // --- AI Operations ---
 
-// GenerateDeckWithAI creates a new presentation using the AI Agent.
-func (a *App) GenerateDeckWithAI(prompt string) (engine.Deck, error) {
-	deck, err := a.aiAgent.GenerateDeckStream(a.ctx, prompt, func(chunk ai.StreamChunk) {
-		runtime.EventsEmit(a.ctx, "ai-stream-chunk", chunk)
-	})
-	if err != nil {
-		return a.deck, err
-	}
-	a.deck = *deck
-	a.filePath = ""
-	a.history = engine.NewHistory(100)
-	a.history.Push(a.deck)
-	return a.deck, nil
+// AIResult is the return type for the unified AI prompt handler.
+type AIResult struct {
+	Action  string      `json:"action"`
+	Deck    engine.Deck `json:"deck"`
+	Message string      `json:"message"`
 }
 
-// AddSlideWithAI generates a new slide and appends it to the deck using AI.
-func (a *App) AddSlideWithAI(prompt string) (engine.Deck, error) {
-	slide, err := a.aiAgent.AddSlideStream(a.ctx, &a.deck, prompt, func(chunk ai.StreamChunk) {
+// ProcessAIPrompt is the unified AI handler. It auto-detects the best action
+// (generate_deck, add_slide, edit_slide) and applies the result.
+func (a *App) ProcessAIPrompt(currentSlideIdx int, prompt string) (AIResult, error) {
+	if currentSlideIdx < 0 || currentSlideIdx >= len(a.deck.Slides) {
+		currentSlideIdx = 0
+	}
+
+	env, err := a.aiAgent.ProcessPromptStream(a.ctx, &a.deck, currentSlideIdx, prompt, func(chunk ai.StreamChunk) {
 		runtime.EventsEmit(a.ctx, "ai-stream-chunk", chunk)
 	})
 	if err != nil {
-		return a.deck, err
+		return AIResult{Deck: a.deck}, err
 	}
-	a.deck.Slides = append(a.deck.Slides, *slide)
-	a.pushHistory()
-	return a.deck, nil
+
+	switch env.Action {
+	case "generate_deck":
+		a.deck = engine.NewDeck()
+		if env.Title != "" {
+			a.deck.Meta.Title = env.Title
+		} else {
+			a.deck.Meta.Title = prompt
+		}
+		if len(env.Slides) > 0 {
+			a.deck.Slides = env.Slides
+		}
+		a.filePath = ""
+		a.history = engine.NewHistory(100)
+		a.history.Push(a.deck)
+
+	case "add_slide":
+		if env.Slide != nil {
+			a.deck.Slides = append(a.deck.Slides, *env.Slide)
+			a.pushHistory()
+		}
+
+	case "edit_slide":
+		if env.Slide != nil && currentSlideIdx >= 0 && currentSlideIdx < len(a.deck.Slides) {
+			// Preserve the original slide ID
+			env.Slide.ID = a.deck.Slides[currentSlideIdx].ID
+			a.deck.Slides[currentSlideIdx] = *env.Slide
+			a.pushHistory()
+		}
+	}
+
+	msg := env.Message
+	if msg == "" {
+		msg = fmt.Sprintf("Completed %s action.", env.Action)
+	}
+
+	return AIResult{
+		Action:  env.Action,
+		Deck:    a.deck,
+		Message: msg,
+	}, nil
+}
+
+// GenerateDeckWithAI creates a new presentation using the AI Agent (legacy wrapper).
+func (a *App) GenerateDeckWithAI(prompt string) (engine.Deck, error) {
+	res, err := a.ProcessAIPrompt(0, prompt)
+	return res.Deck, err
+}
+
+// AddSlideWithAI generates a new slide and appends it to the deck using AI (legacy wrapper).
+func (a *App) AddSlideWithAI(prompt string) (engine.Deck, error) {
+	res, err := a.ProcessAIPrompt(0, prompt)
+	return res.Deck, err
 }
 
 // --- Internal ---

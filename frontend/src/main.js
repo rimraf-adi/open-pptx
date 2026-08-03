@@ -9,7 +9,7 @@ import { GetDeck, NewDeck, AddSlide, DeleteSlide, DuplicateSlide, ReorderSlide,
          AddElement, AddShapeElement, UpdateElement, DeleteElement, UpdateDeckMeta, UpdateSlideBg,
          Undo, Redo, CanUndo, CanRedo,
          SaveFile, SaveFileAs, OpenFile, GetFilePath,
-         GenerateDeckWithAI, AddSlideWithAI } from '../wailsjs/go/main/App';
+         ProcessAIPrompt, GenerateDeckWithAI, AddSlideWithAI } from '../wailsjs/go/main/App';
 
 // ─── State ─────────────────────────────────────────────────────────
 let state = {
@@ -32,8 +32,9 @@ let state = {
   aiLoading: false,
   aiReasoning: '',
   aiStreamingText: '',
+  aiContentMode: false, // false = quick prompt, true = content paste
   aiMessages: [
-    { role: 'assistant', content: 'Hi! I am your AI Co-pilot powered by NVIDIA NIM. Ask me to generate a presentation deck, add slides, or refine your content.' }
+    { role: 'assistant', content: 'Hi! I am your AI Co-pilot. Ask me to generate a presentation deck, add slides, or paste long-form content to auto-generate a full deck.' }
   ],
   // Performance & RAF state
   rafPending: false,
@@ -557,25 +558,112 @@ function renderAIPanel() {
       <div class="ai-panel-header">
         <div class="ai-panel-title">
           <svg class="ai-sparkle-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z"/></svg>
-          AI Co-pilot (NVIDIA NIM)
+          AI Co-pilot
         </div>
         <button class="ai-close-btn" onclick="window.app.toggleAIPanel()">✕</button>
       </div>
 
-      <div class="ai-messages" id="aiMsgList">
-        ${renderAIMessageItems()}
+      <!-- Mode Tabs -->
+      <div class="ai-mode-tabs">
+        <button class="ai-mode-tab ${!state.aiContentMode ? 'active' : ''}" onclick="window.app.setAIMode(false)">
+          ⚡ Quick Prompt
+        </button>
+        <button class="ai-mode-tab ${state.aiContentMode ? 'active' : ''}" onclick="window.app.setAIMode(true)">
+          📄 Content → Deck
+        </button>
       </div>
 
-      <div class="ai-pills">
-        <button class="ai-pill" onclick="window.app.sendAIPrompt('Create a 5-slide pitch deck for a startup')">🚀 Pitch Deck</button>
-        <button class="ai-pill" onclick="window.app.sendAIPrompt('Add a slide comparing our pricing tiers')">💰 Pricing Slide</button>
-        <button class="ai-pill" onclick="window.app.sendAIPrompt('Add a slide showing high level architecture')">🏗️ Architecture</button>
+      ${state.aiContentMode ? renderContentMode() : renderQuickPromptMode()}
+    </div>
+  `;
+}
+
+function renderQuickPromptMode() {
+  return `
+    <div class="ai-messages" id="aiMsgList">
+      ${renderAIMessageItems()}
+    </div>
+
+    <div class="ai-pills">
+      <button class="ai-pill" onclick="window.app.sendAIPrompt('Create a 5-slide pitch deck for a startup')">🚀 Pitch Deck</button>
+      <button class="ai-pill" onclick="window.app.sendAIPrompt('Add a slide comparing our pricing tiers')">💰 Pricing</button>
+      <button class="ai-pill" onclick="window.app.sendAIPrompt('Add a slide showing high level architecture')">🏗️ Architecture</button>
+      <button class="ai-pill" onclick="window.app.sendAIPrompt('Make this slide more visually appealing')">✨ Beautify</button>
+    </div>
+
+    <div class="ai-input-box">
+      <input class="ai-input" id="aiInput" type="text" placeholder="Ask AI to build slides..." onkeydown="if(event.key==='Enter') window.app.submitAIPrompt()" />
+      <button class="ai-send-btn" onclick="window.app.submitAIPrompt()" ${state.aiLoading ? 'disabled' : ''}>Send</button>
+    </div>
+  `;
+}
+
+function renderContentMode() {
+  return `
+    <div class="ai-content-section">
+      <div class="ai-content-header">
+        <span class="ai-content-header-icon">📋</span>
+        <div>
+          <div class="ai-content-title">Paste your content</div>
+          <div class="ai-content-subtitle">Notes, outlines, docs, or any text — AI will analyze and build a complete presentation.</div>
+        </div>
       </div>
 
-      <div class="ai-input-box">
-        <input class="ai-input" id="aiInput" type="text" placeholder="Ask AI to build slides..." onkeydown="if(event.key==='Enter') window.app.submitAIPrompt()" />
-        <button class="ai-send-btn" onclick="window.app.submitAIPrompt()" ${state.aiLoading ? 'disabled' : ''}>Send</button>
+      <textarea
+        class="ai-content-textarea"
+        id="aiContentTextarea"
+        placeholder="Paste your content here...
+
+Examples:
+• Meeting notes or transcripts
+• Product specs or PRDs
+• Blog posts or articles
+• Research summaries
+• Bullet-point outlines
+• Any raw text content
+
+The AI will analyze the structure, extract key points, and generate a visually stunning multi-slide deck."
+        rows="12"
+      >${state.aiContentText || ''}</textarea>
+
+      <div class="ai-content-options">
+        <div class="ai-content-option-row">
+          <span class="prop-label">Slides</span>
+          <select class="prop-select" id="aiContentSlideCount">
+            <option value="auto">Auto (AI decides)</option>
+            <option value="3">3 slides</option>
+            <option value="5" selected>5 slides</option>
+            <option value="8">8 slides</option>
+            <option value="10">10 slides</option>
+          </select>
+        </div>
+        <div class="ai-content-option-row">
+          <span class="prop-label">Style</span>
+          <select class="prop-select" id="aiContentStyle">
+            <option value="modern" selected>Modern & Clean</option>
+            <option value="bold">Bold & Impactful</option>
+            <option value="minimal">Minimal</option>
+            <option value="corporate">Corporate</option>
+          </select>
+        </div>
       </div>
+
+      <button
+        class="ai-content-generate-btn"
+        onclick="window.app.generateFromContent()"
+        ${state.aiLoading ? 'disabled' : ''}
+      >
+        ${state.aiLoading
+          ? '<span class="ai-shimmer"><span class="ai-shimmer-dot"></span><span class="ai-shimmer-dot"></span><span class="ai-shimmer-dot"></span></span> Generating...'
+          : '✨ Generate Presentation'}
+      </button>
+
+      ${state.aiLoading && state.aiReasoning ? `
+        <div class="ai-reasoning-live">
+          <div class="ai-reasoning-label">🧠 AI is thinking...</div>
+          <div class="ai-reasoning-text">${escapeHtml(state.aiReasoning.slice(-400))}</div>
+        </div>
+      ` : ''}
     </div>
   `;
 }
@@ -648,8 +736,7 @@ function renderPresentMode() {
               content = `<div style="font-size: ${style.fontSize || 24}px; font-weight: ${style.fontWeight || 'normal'}; color: ${style.color || '#0F172A'}; text-align: ${style.textAlign || 'left'}; font-family: ${style.fontFamily || 'Inter'}, sans-serif; line-height: ${style.lineHeight || 1.4}; width: 100%; height: 100%;">${el.content}</div>`;
               break;
             case 'shape':
-              const radius = el.shapeType === 'circle' ? '50%' : `${style.borderRadius || 8}px`;
-              content = `<div style="width: 100%; height: 100%; background: ${style.bgColor || '#2563EB'}; border-radius: ${radius}; opacity: ${style.opacity ?? 1};"></div>`;
+              content = renderShapeHTML(el.shapeType, style);
               break;
             case 'code':
               content = `<div style="width: 100%; height: 100%; padding: 16px; font-size: ${style.fontSize || 14}px; color: ${style.color || '#E2E8F0'}; background: ${style.bgColor || '#1E293B'}; border-radius: ${style.borderRadius || 12}px; font-family: 'JetBrains Mono', monospace; white-space: pre; overflow: auto; line-height: 1.6;">${escapeHtml(el.content)}</div>`;
@@ -1046,6 +1133,79 @@ window.app = {
     renderAppShell();
   },
 
+  setAIMode(isContentMode) {
+    state.aiContentMode = isContentMode;
+    updatePropertiesOnly();
+  },
+
+  async generateFromContent() {
+    const textarea = document.getElementById('aiContentTextarea');
+    const slideCountSelect = document.getElementById('aiContentSlideCount');
+    const styleSelect = document.getElementById('aiContentStyle');
+
+    const content = textarea?.value?.trim();
+    if (!content || state.aiLoading) return;
+
+    const slideCount = slideCountSelect?.value || 'auto';
+    const designStyle = styleSelect?.value || 'modern';
+
+    state.aiContentText = content;
+    state.aiLoading = true;
+    state.aiReasoning = '';
+    state.aiStreamingText = '';
+    updatePropertiesOnly();
+
+    const prompt = `CONTENT-TO-DECK: Analyze the following content and create a complete, visually stunning presentation from it.
+
+Design style: ${designStyle}
+Slide count preference: ${slideCount === 'auto' ? 'Decide the optimal number based on content (usually 5-8)' : slideCount + ' slides'}
+
+INSTRUCTIONS:
+1. Read and understand the content thoroughly
+2. Extract key themes, sections, and important points
+3. Plan a logical slide flow: Title → Key sections → Conclusion/CTA
+4. Create visually rich slides with decorative shapes, accent colors, and clean typography
+5. Summarize dense text into concise bullet points or short phrases
+6. Use the "generate_deck" action
+
+CONTENT:
+---
+${content}
+---`;
+
+    try {
+      const result = await ProcessAIPrompt(state.currentSlide, prompt);
+      state.deck = result.deck;
+      state.currentSlide = 0;
+      state.selectedElement = null;
+
+      state.aiMessages.push({
+        role: 'assistant',
+        content: `✨ ${result.message || `Generated "${state.deck.meta.title}" with ${state.deck.slides.length} slides from your content.`}`,
+        reasoning: state.aiReasoning,
+        showReasoning: true,
+      });
+
+      state.aiContentMode = false;
+      renderAppShell();
+    } catch (e) {
+      console.error('AI Content Error:', e);
+      state.aiMessages.push({
+        role: 'assistant',
+        content: `⚠️ Failed to generate from content: ${e}`,
+        reasoning: state.aiReasoning,
+        showReasoning: true,
+      });
+      state.aiContentMode = false;
+      updatePropertiesOnly();
+    } finally {
+      state.aiLoading = false;
+      state.aiReasoning = '';
+      state.aiStreamingText = '';
+      updatePropertiesOnly();
+    }
+  },
+
   async sendAIPrompt(promptText) {
     if (!promptText || state.aiLoading) return;
     state.aiMessages.push({ role: 'user', content: promptText });
@@ -1055,27 +1215,36 @@ window.app = {
     updateAIMessagesOnly();
 
     try {
-      if (promptText.toLowerCase().includes('deck') || promptText.toLowerCase().includes('presentation')) {
-        state.deck = await GenerateDeckWithAI(promptText);
-        state.currentSlide = 0;
-        state.aiMessages.push({
-          role: 'assistant',
-          content: `✨ Generated deck: "${state.deck.meta.title}" with ${state.deck.slides.length} slides.`,
-          reasoning: state.aiReasoning,
-          showReasoning: true,
-        });
-        renderAppShell();
-      } else {
-        state.deck = await AddSlideWithAI(promptText);
-        state.currentSlide = state.deck.slides.length - 1;
-        state.aiMessages.push({
-          role: 'assistant',
-          content: `✨ Added a new slide based on your request.`,
-          reasoning: state.aiReasoning,
-          showReasoning: true,
-        });
-        renderAppShell();
+      const result = await ProcessAIPrompt(state.currentSlide, promptText);
+      state.deck = result.deck;
+
+      let responseMsg = '';
+      switch (result.action) {
+        case 'generate_deck':
+          state.currentSlide = 0;
+          state.selectedElement = null;
+          responseMsg = `✨ ${result.message || `Generated "${state.deck.meta.title}" with ${state.deck.slides.length} slides.`}`;
+          break;
+        case 'add_slide':
+          state.currentSlide = state.deck.slides.length - 1;
+          state.selectedElement = null;
+          responseMsg = `✨ ${result.message || 'Added a new slide.'}`;
+          break;
+        case 'edit_slide':
+          state.selectedElement = null;
+          responseMsg = `✨ ${result.message || 'Updated the current slide.'}`;
+          break;
+        default:
+          responseMsg = `✨ ${result.message || 'Done.'}`;
       }
+
+      state.aiMessages.push({
+        role: 'assistant',
+        content: responseMsg,
+        reasoning: state.aiReasoning,
+        showReasoning: true,
+      });
+      renderAppShell();
     } catch (e) {
       console.error('AI Error:', e);
       state.aiMessages.push({

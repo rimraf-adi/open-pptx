@@ -58,6 +58,10 @@ export function OpenFile() {
   return window['go']['main']['App']['OpenFile']();
 }
 
+export function ProcessAIPrompt(arg1, arg2) {
+  return window['go']['main']['App']['ProcessAIPrompt'](arg1, arg2);
+}
+
 export function Redo() {
   return window['go']['main']['App']['Redo']();
 }

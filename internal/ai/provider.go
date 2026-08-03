@@ -248,7 +248,7 @@ func (c *Client) completeStreamSingle(ctx context.Context, provider, model, apiK
 			{Role: "user", Content: userPrompt},
 		},
 		"temperature": 0.3,
-		"max_tokens":   4096,
+		"max_tokens":   8192,
 		"stream":       true,
 	}
 
