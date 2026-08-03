@@ -1375,6 +1375,160 @@ function escapeHtml(str) {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+const builtInTemplates = {
+  pitch: {
+    meta: { title: "Startup Pitch Deck", author: "open-pptx" },
+    slides: [
+      {
+        id: "slide-1",
+        bgColor: "#0F172A",
+        elements: [
+          { id: "el-1", type: "text", content: "Acme AI Engine", position: { x: 80, y: 180, w: 800, h: 70 }, style: { fontSize: 52, fontWeight: "bold", color: "#FFFFFF", textAlign: "center" }, zIndex: 5 },
+          { id: "el-2", type: "text", content: "The Next-Generation Presentation & Deck Co-Pilot", position: { x: 160, y: 265, w: 640, h: 40 }, style: { fontSize: 22, fontWeight: "normal", color: "#94A3B8", textAlign: "center" }, zIndex: 5 },
+          { id: "el-3", type: "shape", shapeType: "line", position: { x: 400, y: 325, w: 160, h: 3 }, style: { bgColor: "#2563EB" }, zIndex: 4 }
+        ]
+      },
+      {
+        id: "slide-2",
+        bgColor: "#FFFFFF",
+        elements: [
+          { id: "el-1", type: "text", content: "Problem & Market Opportunity", position: { x: 60, y: 40, w: 840, h: 50 }, style: { fontSize: 32, fontWeight: "bold", color: "#0F172A" }, zIndex: 5 },
+          { id: "el-2", type: "shape", shapeType: "line", position: { x: 60, y: 95, w: 80, h: 3 }, style: { bgColor: "#2563EB" }, zIndex: 4 },
+          { id: "el-card1", type: "shape", shapeType: "rect", position: { x: 40, y: 130, w: 420, h: 320 }, style: { bgColor: "#F8FAFC", borderRadius: 14 }, zIndex: 2 },
+          { id: "el-card1-title", type: "text", content: "Current Pain Points", position: { x: 65, y: 155, w: 370, h: 35 }, style: { fontSize: 22, fontWeight: "bold", color: "#0F172A" }, zIndex: 5 },
+          { id: "el-card1-body", type: "text", content: "• Creating slides manually takes 4+ hours per presentation\n• Existing tools produce generic, uninspired layouts\n• Teams struggle with visual consistency and formatting", position: { x: 65, y: 200, w: 370, h: 220 }, style: { fontSize: 17, color: "#334155" }, zIndex: 5 },
+          { id: "el-card2", type: "shape", shapeType: "rect", position: { x: 490, y: 130, w: 420, h: 320 }, style: { bgColor: "#EFF6FF", borderRadius: 14 }, zIndex: 2 },
+          { id: "el-card2-title", type: "text", content: "Market Opportunity", position: { x: 515, y: 155, w: 370, h: 35 }, style: { fontSize: 22, fontWeight: "bold", color: "#1E3A8A" }, zIndex: 5 },
+          { id: "el-card2-body", type: "text", content: "• $12B+ global presentation software market\n• 300 million pitch decks created annually worldwide\n• Massive demand for automated, professional slide engines", position: { x: 515, y: 200, w: 370, h: 220 }, style: { fontSize: 17, color: "#1E40AF" }, zIndex: 5 }
+        ]
+      },
+      {
+        id: "slide-3",
+        bgColor: "#FFFFFF",
+        elements: [
+          { id: "el-1", type: "text", content: "The Solution & Product Strategy", position: { x: 60, y: 40, w: 840, h: 50 }, style: { fontSize: 32, fontWeight: "bold", color: "#0F172A" }, zIndex: 5 },
+          { id: "el-2", type: "shape", shapeType: "line", position: { x: 60, y: 95, w: 80, h: 3 }, style: { bgColor: "#2563EB" }, zIndex: 4 },
+          { id: "el-c1", type: "shape", shapeType: "rect", position: { x: 40, y: 130, w: 270, h: 320 }, style: { bgColor: "#F1F5F9", borderRadius: 14 }, zIndex: 2 },
+          { id: "el-c1-t", type: "text", content: "Instant AI Generation", position: { x: 60, y: 155, w: 230, h: 30 }, style: { fontSize: 20, fontWeight: "bold", color: "#0F172A" }, zIndex: 5 },
+          { id: "el-c1-b", type: "text", content: "Generate complete, beautifully formatted multi-slide presentations from a single prompt.", position: { x: 60, y: 195, w: 230, h: 220 }, style: { fontSize: 15, color: "#475569" }, zIndex: 5 },
+          { id: "el-c2", type: "shape", shapeType: "rect", position: { x: 340, y: 130, w: 270, h: 320 }, style: { bgColor: "#F1F5F9", borderRadius: 14 }, zIndex: 2 },
+          { id: "el-c2-t", type: "text", content: "Pixel-Perfect Layouts", position: { x: 360, y: 155, w: 230, h: 30 }, style: { fontSize: 20, fontWeight: "bold", color: "#0F172A" }, zIndex: 5 },
+          { id: "el-c2-b", type: "text", content: "Smart 16:9 widescreen canvas with auto-aligning grid system and precise positioning.", position: { x: 360, y: 195, w: 230, h: 220 }, style: { fontSize: 15, color: "#475569" }, zIndex: 5 },
+          { id: "el-c3", type: "shape", shapeType: "rect", position: { x: 640, y: 130, w: 270, h: 320 }, style: { bgColor: "#F1F5F9", borderRadius: 14 }, zIndex: 2 },
+          { id: "el-c3-t", type: "text", content: "Open File Formats", position: { x: 660, y: 155, w: 230, h: 30 }, style: { fontSize: 20, fontWeight: "bold", color: "#0F172A" }, zIndex: 5 },
+          { id: "el-c3-b", type: "text", content: "Native support for .opptx and .json files with full offline desktop persistence.", position: { x: 660, y: 195, w: 230, h: 220 }, style: { fontSize: 15, color: "#475569" }, zIndex: 5 }
+        ]
+      },
+      {
+        id: "slide-4",
+        bgColor: "#FFFFFF",
+        elements: [
+          { id: "el-1", type: "text", content: "Business Model & Traction", position: { x: 60, y: 40, w: 840, h: 50 }, style: { fontSize: 32, fontWeight: "bold", color: "#0F172A" }, zIndex: 5 },
+          { id: "el-2", type: "shape", shapeType: "line", position: { x: 60, y: 95, w: 80, h: 3 }, style: { bgColor: "#2563EB" }, zIndex: 4 },
+          { id: "el-b1", type: "text", content: "• SaaS Freemium: Free desktop tier + Pro Team subscription ($19/mo)", position: { x: 60, y: 140, w: 840, h: 40 }, style: { fontSize: 20, color: "#334155" }, zIndex: 5 },
+          { id: "el-b2", type: "text", content: "• Enterprise API: API access for automated slide deck generation", position: { x: 60, y: 195, w: 840, h: 40 }, style: { fontSize: 20, color: "#334155" }, zIndex: 5 },
+          { id: "el-b3", type: "text", content: "• Key Metric: 10,000+ presentations generated in Beta trial", position: { x: 60, y: 250, w: 840, h: 40 }, style: { fontSize: 20, color: "#334155" }, zIndex: 5 },
+          { id: "el-b4", type: "text", content: "• MoM Growth: 35% active user retention month-over-month", position: { x: 60, y: 305, w: 840, h: 40 }, style: { fontSize: 20, color: "#334155" }, zIndex: 5 }
+        ]
+      },
+      {
+        id: "slide-5",
+        bgColor: "#0F172A",
+        elements: [
+          { id: "el-1", type: "text", content: "Join Us on the Journey", position: { x: 80, y: 180, w: 800, h: 60 }, style: { fontSize: 44, fontWeight: "bold", color: "#FFFFFF", textAlign: "center" }, zIndex: 5 },
+          { id: "el-2", type: "text", content: "Contact: contact@open-pptx.com | www.open-pptx.com", position: { x: 160, y: 260, w: 640, h: 40 }, style: { fontSize: 20, color: "#94A3B8", textAlign: "center" }, zIndex: 5 }
+        ]
+      }
+    ]
+  },
+
+  roadmap: {
+    meta: { title: "Product Strategy & Roadmap", author: "open-pptx" },
+    slides: [
+      {
+        id: "slide-1",
+        bgColor: "#EFF6FF",
+        elements: [
+          { id: "el-1", type: "text", content: "Product Strategy & Roadmap 2026", position: { x: 80, y: 180, w: 800, h: 70 }, style: { fontSize: 48, fontWeight: "bold", color: "#1E3A8A", textAlign: "center" }, zIndex: 5 },
+          { id: "el-2", type: "text", content: "Quarterly Milestones & Key Strategic Directives", position: { x: 160, y: 265, w: 640, h: 40 }, style: { fontSize: 22, fontWeight: "normal", color: "#3B82F6", textAlign: "center" }, zIndex: 5 }
+        ]
+      },
+      {
+        id: "slide-2",
+        bgColor: "#FFFFFF",
+        elements: [
+          { id: "el-1", type: "text", content: "Quarterly Execution Plan", position: { x: 60, y: 40, w: 840, h: 50 }, style: { fontSize: 32, fontWeight: "bold", color: "#0F172A" }, zIndex: 5 },
+          { id: "el-q1", type: "shape", shapeType: "rect", position: { x: 40, y: 130, w: 200, h: 320 }, style: { bgColor: "#F1F5F9", borderRadius: 12 }, zIndex: 2 },
+          { id: "el-q1-t", type: "text", content: "Q1 2026", position: { x: 55, y: 150, w: 170, h: 30 }, style: { fontSize: 20, fontWeight: "bold", color: "#2563EB" }, zIndex: 5 },
+          { id: "el-q1-b", type: "text", content: "• Core Engine v1.0\n• AI Prompt Agent\n• Wails Desktop App", position: { x: 55, y: 190, w: 170, h: 220 }, style: { fontSize: 14, color: "#334155" }, zIndex: 5 },
+          { id: "el-q2", type: "shape", shapeType: "rect", position: { x: 260, y: 130, w: 200, h: 320 }, style: { bgColor: "#F1F5F9", borderRadius: 12 }, zIndex: 2 },
+          { id: "el-q2-t", type: "text", content: "Q2 2026", position: { x: 275, y: 150, w: 170, h: 30 }, style: { fontSize: 20, fontWeight: "bold", color: "#7C3AED" }, zIndex: 5 },
+          { id: "el-q2-b", type: "text", content: "• Templates Library\n• Local File System\n• SVG Clipart Import", position: { x: 275, y: 190, w: 170, h: 220 }, style: { fontSize: 14, color: "#334155" }, zIndex: 5 },
+          { id: "el-q3", type: "shape", shapeType: "rect", position: { x: 480, y: 130, w: 200, h: 320 }, style: { bgColor: "#F1F5F9", borderRadius: 12 }, zIndex: 2 },
+          { id: "el-q3-t", type: "text", content: "Q3 2026", position: { x: 495, y: 150, w: 170, h: 30 }, style: { fontSize: 20, fontWeight: "bold", color: "#059669" }, zIndex: 5 },
+          { id: "el-q3-b", type: "text", content: "• Cloud Sync API\n• Real-Time Collab\n• PDF/PPTX Exporter", position: { x: 495, y: 190, w: 170, h: 220 }, style: { fontSize: 14, color: "#334155" }, zIndex: 5 },
+          { id: "el-q4", type: "shape", shapeType: "rect", position: { x: 700, y: 130, w: 200, h: 320 }, style: { bgColor: "#F1F5F9", borderRadius: 12 }, zIndex: 2 },
+          { id: "el-q4-t", type: "text", content: "Q4 2026", position: { x: 715, y: 150, w: 170, h: 30 }, style: { fontSize: 20, fontWeight: "bold", color: "#D97706" }, zIndex: 5 },
+          { id: "el-q4-b", type: "text", content: "• Enterprise Suite\n• Analytics Dashboard\n• Custom Fonts", position: { x: 715, y: 190, w: 170, h: 220 }, style: { fontSize: 14, color: "#334155" }, zIndex: 5 }
+        ]
+      }
+    ]
+  },
+
+  architecture: {
+    meta: { title: "Technical System Architecture", author: "open-pptx" },
+    slides: [
+      {
+        id: "slide-1",
+        bgColor: "#F8FAFC",
+        elements: [
+          { id: "el-1", type: "text", content: "System Architecture", position: { x: 80, y: 180, w: 800, h: 70 }, style: { fontSize: 48, fontWeight: "bold", color: "#0F172A", textAlign: "center" }, zIndex: 5 },
+          { id: "el-2", type: "text", content: "High-Level Core Engine & Client Topology", position: { x: 160, y: 265, w: 640, h: 40 }, style: { fontSize: 22, color: "#64748B", textAlign: "center" }, zIndex: 5 }
+        ]
+      },
+      {
+        id: "slide-2",
+        bgColor: "#FFFFFF",
+        elements: [
+          { id: "el-1", type: "text", content: "Core Components & Data Flow", position: { x: 60, y: 40, w: 840, h: 50 }, style: { fontSize: 32, fontWeight: "bold", color: "#0F172A" }, zIndex: 5 },
+          { id: "el-c1", type: "code", content: "// Frontend (Wails / JavaScript)\nconst appState = {\n  deck: currentDeck,\n  canvasScale: 1.0,\n  selectedElement: null\n};\n\n// IPC Binding to Go Backend\nawait ProcessAIPrompt(targetSlide, prompt);", position: { x: 60, y: 120, w: 410, h: 320 }, style: { fontSize: 14, color: "#0F172A", bgColor: "#F1F5F9", borderRadius: 12 }, zIndex: 5 },
+          { id: "el-c2", type: "code", content: "// Backend (Go Core Engine)\ntype Deck struct {\n  Meta   DeckMeta `json:\"meta\"` \n  Slides []Slide  `json:\"slides\"` \n}\n\n// AI Key Rotation Client\nfunc CompleteStream(...) {\n  // Groq API Key Rotation\n}", position: { x: 490, y: 120, w: 410, h: 320 }, style: { fontSize: 14, color: "#0F172A", bgColor: "#F1F5F9", borderRadius: 12 }, zIndex: 5 }
+        ]
+      }
+    ]
+  },
+
+  qbr: {
+    meta: { title: "Executive Quarterly Review", author: "open-pptx" },
+    slides: [
+      {
+        id: "slide-1",
+        bgColor: "#ECFDF5",
+        elements: [
+          { id: "el-1", type: "text", content: "Executive Quarterly Review", position: { x: 80, y: 180, w: 800, h: 70 }, style: { fontSize: 48, fontWeight: "bold", color: "#064E3B", textAlign: "center" }, zIndex: 5 },
+          { id: "el-2", type: "text", content: "Key Financial Highlights, Operations & Strategic Goals", position: { x: 160, y: 265, w: 640, h: 40 }, style: { fontSize: 22, color: "#059669", textAlign: "center" }, zIndex: 5 }
+        ]
+      },
+      {
+        id: "slide-2",
+        bgColor: "#FFFFFF",
+        elements: [
+          { id: "el-1", type: "text", content: "Key Performance Metrics", position: { x: 60, y: 40, w: 840, h: 50 }, style: { fontSize: 32, fontWeight: "bold", color: "#0F172A" }, zIndex: 5 },
+          { id: "el-c1", type: "shape", shapeType: "rect", position: { x: 40, y: 130, w: 270, h: 220 }, style: { bgColor: "#ECFDF5", borderRadius: 14 }, zIndex: 2 },
+          { id: "el-c1-t", type: "text", content: "$2.4M", position: { x: 60, y: 160, w: 230, h: 50 }, style: { fontSize: 42, fontWeight: "bold", color: "#059669" }, zIndex: 5 },
+          { id: "el-c1-b", type: "text", content: "ARR (+45% YoY)", position: { x: 60, y: 220, w: 230, h: 30 }, style: { fontSize: 18, color: "#064E3B" }, zIndex: 5 },
+          { id: "el-c2", type: "shape", shapeType: "rect", position: { x: 340, y: 130, w: 270, h: 220 }, style: { bgColor: "#EFF6FF", borderRadius: 14 }, zIndex: 2 },
+          { id: "el-c2-t", type: "text", content: "125K", position: { x: 360, y: 160, w: 230, h: 50 }, style: { fontSize: 42, fontWeight: "bold", color: "#2563EB" }, zIndex: 5 },
+          { id: "el-c2-b", type: "text", content: "Active Monthly Users", position: { x: 360, y: 220, w: 230, h: 30 }, style: { fontSize: 18, color: "#1E3A8A" }, zIndex: 5 },
+          { id: "el-c3", type: "shape", shapeType: "rect", position: { x: 640, y: 130, w: 270, h: 220 }, style: { bgColor: "#EDE9FE", borderRadius: 14 }, zIndex: 2 },
+          { id: "el-c3-t", type: "text", content: "98.5%", position: { x: 660, y: 160, w: 230, h: 50 }, style: { fontSize: 42, fontWeight: "bold", color: "#7C3AED" }, zIndex: 5 },
+          { id: "el-c3-b", type: "text", content: "Customer Retention Rate", position: { x: 660, y: 220, w: 230, h: 30 }, style: { fontSize: 18, color: "#4C1D95" }, zIndex: 5 }
+        ]
+      }
+    ]
+  }
+};
+
 // ─── Public API (window.app) ───────────────────────────────────────
 window.app = {
   setHomescreenTab(tab) {
@@ -1419,23 +1573,12 @@ window.app = {
 
   useTemplate(type) {
     state.showHomescreen = false;
+    const template = builtInTemplates[type] || builtInTemplates['pitch'];
+    state.deck = JSON.parse(JSON.stringify(template));
+    state.currentSlide = 0;
+    state.selectedElement = null;
+    state.filePath = '';
     renderAppShell();
-    let prompt = '';
-    switch (type) {
-      case 'pitch':
-        prompt = 'Create a 5-slide startup pitch deck with title, problem, solution, business model, and team slides';
-        break;
-      case 'roadmap':
-        prompt = 'Create a 4-slide product roadmap presentation with vision, quarterly milestones, feature matrix, and metrics';
-        break;
-      case 'architecture':
-        prompt = 'Create a 4-slide technical architecture presentation with system overview, data flow, components, and security';
-        break;
-      case 'qbr':
-        prompt = 'Create a 4-slide quarterly business review presentation with performance summary, revenue metrics, challenges, and Q3 goals';
-        break;
-    }
-    window.app.sendAIPrompt(prompt);
   },
 
   // Image & Clipart actions
