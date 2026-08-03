@@ -78,7 +78,10 @@ function renderAppShell() {
 
   app.innerHTML = `
     <div class="titlebar">
-      <span class="titlebar-title" id="deckTitleText">${escapeHtml(state.deck?.meta?.title || 'open-pptx')}</span>
+      <div class="titlebar-brand">
+        <img class="titlebar-logo" src="/logo.png" alt="open-pptx logo" />
+        <span class="titlebar-title" id="deckTitleText">${escapeHtml(state.deck?.meta?.title || 'open-pptx')}</span>
+      </div>
     </div>
     <div class="app-layout">
       ${renderSidebar()}

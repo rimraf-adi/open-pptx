@@ -149,6 +149,17 @@ html, body {
   z-index: 1000;
   flex-shrink: 0;
 }
+.titlebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.titlebar-logo {
+  height: 20px;
+  width: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(37, 99, 235, 0.2));
+}
 .titlebar-title {
   font-size: var(--text-sm);
   font-weight: 500;

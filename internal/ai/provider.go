@@ -11,12 +11,18 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
+)
+
+var (
+	groqMu     sync.Mutex
+	groqKeyIdx int
 )
 
 // Config holds AI service configuration.
 type Config struct {
-	Provider string // "nim", "groq", "openai", "ollama"
+	Provider string // "groq", "nim", "openai", "ollama"
 	APIKey   string
 	Model    string
 }
@@ -32,47 +38,82 @@ func NewClient(cfg Config) *Client {
 	loadDotEnv()
 
 	if cfg.Provider == "" {
-		cfg.Provider = "nim"
-	}
-	if cfg.APIKey == "" {
-		cfg.APIKey = getAPIKeyFromEnv(cfg.Provider)
+		cfg.Provider = "groq"
 	}
 	if cfg.Model == "" {
 		switch cfg.Provider {
-		case "nim":
-			cfg.Model = "meta/llama-3.3-70b-instruct"
 		case "groq":
 			cfg.Model = "llama-3.3-70b-versatile"
+		case "nim":
+			cfg.Model = "meta/llama-3.3-70b-instruct"
 		case "openai":
 			cfg.Model = "gpt-4o-mini"
 		case "ollama":
 			cfg.Model = "llama3"
 		}
 	}
+
+	transport := &http.Transport{
+		ResponseHeaderTimeout: 30 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+		MaxIdleConns:          20,
+		IdleConnTimeout:       90 * time.Second,
+	}
+
 	return &Client{
 		config: cfg,
-		http:   &http.Client{Timeout: 120 * time.Second},
+		http: &http.Client{
+			Transport: transport,
+			Timeout:   120 * time.Second,
+		},
 	}
+}
+
+// Get all Groq keys in rotation
+func getGroqKeyList() []string {
+	loadDotEnv()
+	raw := os.Getenv("GROQ_API_KEYS")
+	if raw == "" {
+		raw = os.Getenv("GROQ_API_KEY")
+	}
+	if raw == "" {
+		return nil
+	}
+
+	parts := strings.Split(raw, ",")
+	var valid []string
+	for _, p := range parts {
+		trimmed := strings.TrimSpace(p)
+		if trimmed != "" {
+			valid = append(valid, trimmed)
+		}
+	}
+	return valid
+}
+
+func getNextGroqKey() string {
+	keys := getGroqKeyList()
+	if len(keys) == 0 {
+		return ""
+	}
+	groqMu.Lock()
+	defer groqMu.Unlock()
+	key := keys[groqKeyIdx%len(keys)]
+	groqKeyIdx++
+	return key
 }
 
 func getAPIKeyFromEnv(provider string) string {
 	switch provider {
+	case "groq":
+		return getNextGroqKey()
 	case "nim":
 		key := os.Getenv("NVIDIA_NIM_API_KEY")
 		if key == "" {
 			key = os.Getenv("NVIDIA_API_KEY")
 		}
 		return key
-	case "groq":
-		keys := os.Getenv("GROQ_API_KEYS")
-		if keys == "" {
-			keys = os.Getenv("GROQ_API_KEY")
-		}
-		if keys != "" {
-			parts := strings.Split(keys, ",")
-			return strings.TrimSpace(parts[0])
-		}
-		return ""
 	case "openai":
 		return os.Getenv("OPENAI_API_KEY")
 	}
@@ -87,7 +128,6 @@ func loadDotEnv() {
 		"/Users/adityakinjawadekar/Documents/100xcode/open-pptx/.env",
 	}
 
-	// Try relative to executable
 	if exe, err := os.Executable(); err == nil {
 		exeDir := filepath.Dir(exe)
 		candidatePaths = append(candidatePaths,
@@ -121,13 +161,11 @@ func loadDotEnv() {
 	}
 }
 
-// ChatMessage represents a single chat message.
 type ChatMessage struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
 }
 
-// ChatRequest is the OpenAI-compatible request body.
 type ChatRequest struct {
 	Model          string         `json:"model"`
 	Messages       []ChatMessage  `json:"messages"`
@@ -136,12 +174,10 @@ type ChatRequest struct {
 	ResponseFormat *ResponseFormat `json:"response_format,omitempty"`
 }
 
-// ResponseFormat controls structured output.
 type ResponseFormat struct {
 	Type string `json:"type"` // "json_object"
 }
 
-// ChatResponse is the OpenAI-compatible response.
 type ChatResponse struct {
 	Choices []struct {
 		Message struct {
@@ -153,95 +189,6 @@ type ChatResponse struct {
 	} `json:"error,omitempty"`
 }
 
-// Complete sends a system+user prompt to the LLM and returns the response text.
-func (c *Client) Complete(ctx context.Context, systemPrompt, userPrompt string) (string, error) {
-	apiKey := c.config.APIKey
-	if apiKey == "" {
-		apiKey = getAPIKeyFromEnv(c.config.Provider)
-	}
-	if apiKey == "" && c.config.Provider != "ollama" {
-		return "", fmt.Errorf("API key for provider '%s' is missing", c.config.Provider)
-	}
-
-	endpoint := c.getEndpoint()
-
-	reqBody := ChatRequest{
-		Model: c.config.Model,
-		Messages: []ChatMessage{
-			{Role: "system", Content: systemPrompt},
-			{Role: "user", Content: userPrompt},
-		},
-		Temperature: 0.3,
-		MaxTokens:   4096,
-	}
-
-	if c.config.Provider == "nim" || c.config.Provider == "groq" {
-		reqBody.ResponseFormat = &ResponseFormat{Type: "json_object"}
-	}
-
-	bodyBytes, err := json.Marshal(reqBody)
-	if err != nil {
-		return "", fmt.Errorf("marshal chat request: %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewBuffer(bodyBytes))
-	if err != nil {
-		return "", fmt.Errorf("create request: %w", err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	if apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+apiKey)
-	}
-
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("http request to %s: %w", c.config.Provider, err)
-	}
-	defer resp.Body.Close()
-
-	respBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("read response: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("%s API returned status %d: %s", c.config.Provider, resp.StatusCode, string(respBytes))
-	}
-
-	var chatResp ChatResponse
-	if err := json.Unmarshal(respBytes, &chatResp); err != nil {
-		return "", fmt.Errorf("unmarshal response: %w (raw: %s)", err, string(respBytes))
-	}
-
-	if chatResp.Error != nil {
-		return "", fmt.Errorf("%s API error: %s", c.config.Provider, chatResp.Error.Message)
-	}
-
-	if len(chatResp.Choices) == 0 {
-		return "", fmt.Errorf("no choices returned from %s API", c.config.Provider)
-	}
-
-	return chatResp.Choices[0].Message.Content, nil
-}
-
-// getEndpoint returns the API endpoint for the configured provider.
-func (c *Client) getEndpoint() string {
-	switch c.config.Provider {
-	case "nim":
-		return "https://integrate.api.nvidia.com/v1/chat/completions"
-	case "groq":
-		return "https://api.groq.com/openai/v1/chat/completions"
-	case "openai":
-		return "https://api.openai.com/v1/chat/completions"
-	case "ollama":
-		return "http://localhost:11434/v1/chat/completions"
-	default:
-		return "https://integrate.api.nvidia.com/v1/chat/completions"
-	}
-}
-
-// StreamChunk holds delta text and reasoning content delta.
 type StreamChunk struct {
 	Reasoning string `json:"reasoning"`
 	Content   string `json:"content"`
@@ -257,20 +204,45 @@ type StreamEventChunk struct {
 	} `json:"choices"`
 }
 
-// CompleteStream streams reasoning and content via callback function in real-time.
+// CompleteStream streams reasoning and content with key rotation retries.
 func (c *Client) CompleteStream(ctx context.Context, systemPrompt, userPrompt string, callback func(chunk StreamChunk)) (string, error) {
+	if c.config.Provider == "groq" {
+		keys := getGroqKeyList()
+		if len(keys) == 0 {
+			return "", fmt.Errorf("no Groq API keys found in .env")
+		}
+		var lastErr error
+		// Rotate through keys on failure/rate-limit
+		for i := 0; i < len(keys); i++ {
+			apiKey := getNextGroqKey()
+			res, err := c.completeStreamSingle(ctx, "groq", c.config.Model, apiKey, systemPrompt, userPrompt, callback)
+			if err == nil {
+				return res, nil
+			}
+			lastErr = err
+			if callback != nil {
+				callback(StreamChunk{Reasoning: fmt.Sprintf("\n[Key rotation: key %d rate-limited/failed, rotating to next key...]\n", i+1)})
+			}
+		}
+		return "", fmt.Errorf("all Groq API keys failed: %w", lastErr)
+	}
+
 	apiKey := c.config.APIKey
 	if apiKey == "" {
 		apiKey = getAPIKeyFromEnv(c.config.Provider)
 	}
-	if apiKey == "" && c.config.Provider != "ollama" {
-		return "", fmt.Errorf("API key for provider '%s' is missing", c.config.Provider)
+	return c.completeStreamSingle(ctx, c.config.Provider, c.config.Model, apiKey, systemPrompt, userPrompt, callback)
+}
+
+func (c *Client) completeStreamSingle(ctx context.Context, provider, model, apiKey, systemPrompt, userPrompt string, callback func(chunk StreamChunk)) (string, error) {
+	if apiKey == "" && provider != "ollama" {
+		return "", fmt.Errorf("API key for provider '%s' is missing", provider)
 	}
 
-	endpoint := c.getEndpoint()
+	endpoint := c.getEndpoint(provider)
 
 	reqMap := map[string]interface{}{
-		"model": c.config.Model,
+		"model": model,
 		"messages": []ChatMessage{
 			{Role: "system", Content: systemPrompt},
 			{Role: "user", Content: userPrompt},
@@ -278,6 +250,10 @@ func (c *Client) CompleteStream(ctx context.Context, systemPrompt, userPrompt st
 		"temperature": 0.3,
 		"max_tokens":   4096,
 		"stream":       true,
+	}
+
+	if provider == "nim" || provider == "groq" {
+		reqMap["response_format"] = ResponseFormat{Type: "json_object"}
 	}
 
 	bodyBytes, err := json.Marshal(reqMap)
@@ -297,13 +273,13 @@ func (c *Client) CompleteStream(ctx context.Context, systemPrompt, userPrompt st
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("http request to %s: %w", c.config.Provider, err)
+		return "", fmt.Errorf("http request to %s: %w", provider, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		respBytes, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("%s API returned status %d: %s", c.config.Provider, resp.StatusCode, string(respBytes))
+		return "", fmt.Errorf("%s API returned status %d: %s", provider, resp.StatusCode, string(respBytes))
 	}
 
 	scanner := bufio.NewScanner(resp.Body)
@@ -349,4 +325,19 @@ func (c *Client) CompleteStream(ctx context.Context, systemPrompt, userPrompt st
 	}
 
 	return fullContent.String(), nil
+}
+
+func (c *Client) getEndpoint(provider string) string {
+	switch provider {
+	case "groq":
+		return "https://api.groq.com/openai/v1/chat/completions"
+	case "nim":
+		return "https://integrate.api.nvidia.com/v1/chat/completions"
+	case "openai":
+		return "https://api.openai.com/v1/chat/completions"
+	case "ollama":
+		return "http://localhost:11434/v1/chat/completions"
+	default:
+		return "https://api.groq.com/openai/v1/chat/completions"
+	}
 }

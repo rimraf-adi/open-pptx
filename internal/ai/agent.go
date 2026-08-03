@@ -4,81 +4,90 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"open-pptx/internal/engine"
 )
 
-const systemPrompt = `You are an expert AI presentation designer and co-author for open-pptx.
-Your job is to generate visually stunning, modern, clear presentation slides based on user prompts.
+const systemPrompt = `You are an expert AI presentation co-pilot and designer for open-pptx.
+Your job is to generate visually stunning, modern, clean presentation slides, shapes, text elements, and code blocks based on user requests.
 
 SLIDE CANVAS SPECIFICATIONS:
-- Dimensions: 960px width x 540px height (16:9 widescreen format).
-- Elements must fit comfortably inside (X: 0..960, Y: 0..540).
-- Keep text elements wide enough (W: 400..800) to avoid awkward word wrapping.
+- Widescreen 16:9 format: Width 960px, Height 540px.
+- All element positions must be within X: 0..960, Y: 0..540.
+- Keep text elements wide enough (W: 400..800) to avoid awkward text wrapping.
 
-SLIDE STRUCTURE:
-- Slide title: Y=60..100, FontSize=40..52, FontWeight="bold", Color="#0F172A", TextAlign="left" or "center".
-- Subtitle / Body text: Y=140..400, FontSize=18..24, Color="#334155".
-- Shape elements: Used as card backgrounds or visual accent lines.
-  - Card shape: BgColor="#F1F5F9", BorderRadius=12, W=240..300, H=200..300.
-- Code elements: Type="code", FontSize=14..16, BgColor="#F1F5F9", Color="#0F172A", W=600..800, H=250..350.
-
-COLOR PALETTE (Modern Light Canvas Theme):
-- Background: #FFFFFF (clean white)
-- Cards/Surfaces: #F1F5F9 or #F8FAFC
-- Primary Accent: #2563EB (blue)
+DESIGN SYSTEM & COLOR PALETTE (Modern Light Theme):
+- Slide Background: #FFFFFF (clean white) or #F8FAFC
+- Card / Surface Shapes: #F1F5F9 or #E2E8F0
+- Primary Accent: #2563EB (electric blue)
 - Secondary Accent: #7C3AED (purple)
-- Heading text: #0F172A (dark slate)
-- Subtitle/Body text: #334155 or #64748B
+- Heading text color: #0F172A (dark slate 900)
+- Subtitle / Body text color: #334155 (slate 700) or #64748B (slate 500)
+
+ELEMENT TYPES YOU CAN CREATE & MUTATE:
+1. Text element: type="text", content="...", position={x, y, w, h}, style={fontSize: 18..52, fontWeight: "bold"|"normal"|"600", color: "#0F172A", textAlign: "left"|"center"|"right"}
+2. Shape element: type="shape", shapeType="rect"|"circle", position={x, y, w, h}, style={bgColor: "#2563EB"|"#F1F5F9", borderRadius: 8..16, opacity: 0.1..1.0}
+3. Code element: type="code", content="// code...", position={x, y, w, h}, style={fontSize: 14..16, color: "#0F172A", bgColor: "#F1F5F9", borderRadius: 12}
+
+INTENT ACTION MODES:
+1. "generate_deck": When user requests creating a presentation / deck / pitch deck.
+   JSON structure:
+   {
+     "action": "generate_deck",
+     "title": "Presentation Title",
+     "slides": [
+       {
+         "layout": "title" | "content" | "cards" | "code",
+         "bgColor": "#FFFFFF",
+         "elements": [ ... ]
+       }
+     ],
+     "message": "Generated a 4-slide presentation about iPhone."
+   }
+
+2. "add_slide": When user requests adding a single new slide.
+   JSON structure:
+   {
+     "action": "add_slide",
+     "slide": {
+       "bgColor": "#FFFFFF",
+       "elements": [ ... ]
+     },
+     "message": "Added a new slide."
+   }
+
+3. "edit_slide": When user requests modifying the current slide (e.g. "add a blue card shape", "make title bigger", "add 3 feature cards", "change background to light blue").
+   JSON structure:
+   {
+     "action": "edit_slide",
+     "slide": {
+       "bgColor": "#FFFFFF",
+       "elements": [ ... ]
+     },
+     "message": "Updated current slide with new shapes and layout."
+   }
 
 OUTPUT FORMAT:
-You MUST respond with a valid JSON object only. No markdown formatting, no code blocks (unless inside the JSON string), no commentary.
-
-When generating a DECK, output JSON matching:
-{
-  "title": "Deck Title",
-  "slides": [
-    {
-      "layout": "title" | "content" | "cards" | "code",
-      "bgColor": "#FFFFFF",
-      "elements": [
-        {
-          "id": "el-1",
-          "type": "text" | "shape" | "code",
-          "content": "Text or code content",
-          "position": {"x": 80, "y": 80, "w": 800, "h": 80},
-          "style": {
-            "fontSize": 48,
-            "fontWeight": "bold",
-            "color": "#0F172A",
-            "textAlign": "center",
-            "bgColor": "#F1F5F9",
-            "borderRadius": 12
-          },
-          "zIndex": 1
-        }
-      ]
-    }
-  ]
-}
-
-When editing a single SLIDE, output JSON matching:
-{
-  "bgColor": "#0F172A",
-  "elements": [...]
-}
+You MUST respond ONLY with a valid JSON object matching one of the 3 action structures above. No markdown fences outside the JSON.
 `
 
-// Agent provides slide generation and editing capabilities.
 type Agent struct {
 	client *Client
 }
 
-// NewAgent creates a new AI Agent.
 func NewAgent(cfg Config) *Agent {
 	return &Agent{
 		client: NewClient(cfg),
 	}
+}
+
+type AIResponseEnvelope struct {
+	Action  string         `json:"action"` // "generate_deck" | "add_slide" | "edit_slide"
+	Title   string         `json:"title"`
+	Slides  []engine.Slide `json:"slides"`
+	Slide   *engine.Slide  `json:"slide"`
+	Message string         `json:"message"`
 }
 
 type GeneratedDeckJSON struct {
@@ -86,129 +95,117 @@ type GeneratedDeckJSON struct {
 	Slides []engine.Slide `json:"slides"`
 }
 
-// GenerateDeck creates a new deck from a natural language topic.
-func (a *Agent) GenerateDeck(ctx context.Context, prompt string) (*engine.Deck, error) {
-	userPrompt := fmt.Sprintf("Create a 4-to-6 slide presentation deck about: '%s'. Return valid JSON.", prompt)
+// ProcessPromptStream handles any prompt (generating decks, adding slides, editing shapes/elements) with SSE streaming.
+func (a *Agent) ProcessPromptStream(ctx context.Context, currentDeck *engine.Deck, currentSlideIdx int, prompt string, callback func(chunk StreamChunk)) (*AIResponseEnvelope, error) {
+	currentSlideJSON, _ := json.Marshal(currentDeck.Slides[currentSlideIdx])
+	deckMetaJSON, _ := json.Marshal(currentDeck.Meta)
 
-	jsonStr, err := a.client.Complete(ctx, systemPrompt, userPrompt)
+	userPrompt := fmt.Sprintf("Deck Meta: %s\nCurrent Slide [%d]: %s\n\nUser Request: '%s'\n\nDetermine action ('generate_deck', 'add_slide', or 'edit_slide') and return JSON envelope.", string(deckMetaJSON), currentSlideIdx+1, string(currentSlideJSON), prompt)
+
+	jsonStr, err := a.client.CompleteStream(ctx, systemPrompt, userPrompt, callback)
 	if err != nil {
 		return nil, err
 	}
 
-	var gen GeneratedDeckJSON
-	if err := json.Unmarshal([]byte(jsonStr), &gen); err != nil {
-		return nil, fmt.Errorf("parse AI response: %w\nResponse was: %s", err, jsonStr)
+	cleanStr := cleanJSONString(jsonStr)
+
+	var resp AIResponseEnvelope
+	if err := json.Unmarshal([]byte(cleanStr), &resp); err != nil {
+		// Fallback: try parsing as raw deck
+		var deckGen GeneratedDeckJSON
+		if err2 := json.Unmarshal([]byte(cleanStr), &deckGen); err2 == nil && len(deckGen.Slides) > 0 {
+			resp.Action = "generate_deck"
+			resp.Title = deckGen.Title
+			resp.Slides = deckGen.Slides
+		} else {
+			return nil, fmt.Errorf("parse AI response: %w\nResponse was: %s", err, jsonStr)
+		}
 	}
 
-	deck := engine.NewDeck()
-	if gen.Title != "" {
-		deck.Meta.Title = gen.Title
-	} else {
-		deck.Meta.Title = prompt
+	if resp.Action == "" {
+		if len(resp.Slides) > 0 {
+			resp.Action = "generate_deck"
+		} else if resp.Slide != nil {
+			resp.Action = "add_slide"
+		} else {
+			resp.Action = "generate_deck"
+		}
 	}
 
-	if len(gen.Slides) > 0 {
-		// Ensure IDs on all generated elements and slides
-		for sIdx := range gen.Slides {
-			gen.Slides[sIdx].ID = fmt.Sprintf("slide-ai-%d", sIdx+1)
-			if gen.Slides[sIdx].BgColor == "" {
-				gen.Slides[sIdx].BgColor = "#FFFFFF"
+	// Normalize IDs and fallback colors
+	if resp.Action == "generate_deck" {
+		for sIdx := range resp.Slides {
+			resp.Slides[sIdx].ID = fmt.Sprintf("slide-ai-%d", sIdx+1)
+			if resp.Slides[sIdx].BgColor == "" {
+				resp.Slides[sIdx].BgColor = "#FFFFFF"
 			}
-			for eIdx := range gen.Slides[sIdx].Elements {
-				gen.Slides[sIdx].Elements[eIdx].ID = fmt.Sprintf("el-ai-%d-%d", sIdx+1, eIdx+1)
+			for eIdx := range resp.Slides[sIdx].Elements {
+				resp.Slides[sIdx].Elements[eIdx].ID = fmt.Sprintf("el-ai-%d-%d", sIdx+1, eIdx+1)
 			}
 		}
-		deck.Slides = gen.Slides
+	} else if resp.Slide != nil {
+		if resp.Slide.ID == "" {
+			resp.Slide.ID = fmt.Sprintf("slide-ai-%d", len(currentDeck.Slides)+1)
+		}
+		if resp.Slide.BgColor == "" {
+			resp.Slide.BgColor = "#FFFFFF"
+		}
+		for eIdx := range resp.Slide.Elements {
+			if resp.Slide.Elements[eIdx].ID == "" {
+				resp.Slide.Elements[eIdx].ID = fmt.Sprintf("el-ai-%d", eIdx+1)
+			}
+		}
 	}
 
-	return &deck, nil
+	return &resp, nil
 }
 
-// GenerateDeckStream streams reasoning and content while building a presentation.
+// GenerateDeckStream legacy wrapper
 func (a *Agent) GenerateDeckStream(ctx context.Context, prompt string, callback func(chunk StreamChunk)) (*engine.Deck, error) {
-	userPrompt := fmt.Sprintf("Create a 4-to-6 slide presentation deck about: '%s'. Return valid JSON.", prompt)
-
-	jsonStr, err := a.client.CompleteStream(ctx, systemPrompt, userPrompt, callback)
+	env, err := a.ProcessPromptStream(ctx, &engine.Deck{Slides: []engine.Slide{{}}}, 0, prompt, callback)
 	if err != nil {
 		return nil, err
 	}
-
-	var gen GeneratedDeckJSON
-	if err := json.Unmarshal([]byte(jsonStr), &gen); err != nil {
-		return nil, fmt.Errorf("parse AI response: %w\nResponse was: %s", err, jsonStr)
-	}
-
 	deck := engine.NewDeck()
-	if gen.Title != "" {
-		deck.Meta.Title = gen.Title
+	if env.Title != "" {
+		deck.Meta.Title = env.Title
 	} else {
 		deck.Meta.Title = prompt
 	}
-
-	if len(gen.Slides) > 0 {
-		for sIdx := range gen.Slides {
-			gen.Slides[sIdx].ID = fmt.Sprintf("slide-ai-%d", sIdx+1)
-			if gen.Slides[sIdx].BgColor == "" {
-				gen.Slides[sIdx].BgColor = "#FFFFFF"
-			}
-			for eIdx := range gen.Slides[sIdx].Elements {
-				gen.Slides[sIdx].Elements[eIdx].ID = fmt.Sprintf("el-ai-%d-%d", sIdx+1, eIdx+1)
-			}
-		}
-		deck.Slides = gen.Slides
+	if len(env.Slides) > 0 {
+		deck.Slides = env.Slides
 	}
-
 	return &deck, nil
 }
 
-// AddSlide generates and appends a single slide to the deck based on a prompt.
-func (a *Agent) AddSlide(ctx context.Context, currentDeck *engine.Deck, prompt string) (*engine.Slide, error) {
-	deckContext, _ := json.Marshal(currentDeck.Meta)
-	userPrompt := fmt.Sprintf("Deck metadata: %s\n\nGenerate ONE new slide based on prompt: '%s'. Return valid JSON for the slide elements and background.", string(deckContext), prompt)
-
-	jsonStr, err := a.client.Complete(ctx, systemPrompt, userPrompt)
+// AddSlideStream legacy wrapper
+func (a *Agent) AddSlideStream(ctx context.Context, currentDeck *engine.Deck, prompt string, callback func(chunk StreamChunk)) (*engine.Slide, error) {
+	env, err := a.ProcessPromptStream(ctx, currentDeck, 0, prompt, callback)
 	if err != nil {
 		return nil, err
 	}
-
-	var slide engine.Slide
-	if err := json.Unmarshal([]byte(jsonStr), &slide); err != nil {
-		return nil, fmt.Errorf("parse slide response: %w", err)
+	if env.Slide != nil {
+		return env.Slide, nil
 	}
-
-	slide.ID = fmt.Sprintf("slide-ai-%d", len(currentDeck.Slides)+1)
-	if slide.BgColor == "" {
-		slide.BgColor = "#FFFFFF"
+	if len(env.Slides) > 0 {
+		return &env.Slides[0], nil
 	}
-	for i := range slide.Elements {
-		slide.Elements[i].ID = fmt.Sprintf("el-ai-%d", i+1)
-	}
-
-	return &slide, nil
+	return nil, fmt.Errorf("no slide returned by AI")
 }
 
-// AddSlideStream streams reasoning and content while creating a single slide.
-func (a *Agent) AddSlideStream(ctx context.Context, currentDeck *engine.Deck, prompt string, callback func(chunk StreamChunk)) (*engine.Slide, error) {
-	deckContext, _ := json.Marshal(currentDeck.Meta)
-	userPrompt := fmt.Sprintf("Deck metadata: %s\n\nGenerate ONE new slide based on prompt: '%s'. Return valid JSON for the slide elements and background.", string(deckContext), prompt)
-
-	jsonStr, err := a.client.CompleteStream(ctx, systemPrompt, userPrompt, callback)
-	if err != nil {
-		return nil, err
+func cleanJSONString(s string) string {
+	s = strings.TrimSpace(s)
+	if strings.HasPrefix(s, "```") {
+		lines := strings.Split(s, "\n")
+		if len(lines) > 2 {
+			s = strings.Join(lines[1:len(lines)-1], "\n")
+		}
 	}
-
-	var slide engine.Slide
-	if err := json.Unmarshal([]byte(jsonStr), &slide); err != nil {
-		return nil, fmt.Errorf("parse slide response: %w", err)
+	s = strings.TrimSpace(s)
+	start := strings.Index(s, "{")
+	end := strings.LastIndex(s, "}")
+	if start >= 0 && end > start {
+		return s[start : end+1]
 	}
-
-	slide.ID = fmt.Sprintf("slide-ai-%d", len(currentDeck.Slides)+1)
-	if slide.BgColor == "" {
-		slide.BgColor = "#FFFFFF"
-	}
-	for i := range slide.Elements {
-		slide.Elements[i].ID = fmt.Sprintf("el-ai-%d", i+1)
-	}
-
-	return &slide, nil
+	return s
 }

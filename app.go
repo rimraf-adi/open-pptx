@@ -24,7 +24,7 @@ func NewApp() *App {
 	return &App{
 		deck:    engine.NewDeck(),
 		history: engine.NewHistory(100),
-		aiAgent: ai.NewAgent(ai.Config{Provider: "nim", Model: "meta/llama-3.3-70b-instruct"}),
+		aiAgent: ai.NewAgent(ai.Config{Provider: "groq", Model: "llama-3.3-70b-versatile"}),
 	}
 }
 
