@@ -6,9 +6,9 @@ import './style.css';
 
 // Wails runtime and Go bindings
 import { GetDeck, NewDeck, AddSlide, DeleteSlide, DuplicateSlide, ReorderSlide,
-         AddElement, AddShapeElement, UpdateElement, DeleteElement, UpdateDeckMeta, UpdateSlideBg,
+         AddElement, AddShapeElement, AddImageElement, SelectImageFile, UpdateElement, DeleteElement, UpdateDeckMeta, UpdateSlideBg,
          Undo, Redo, CanUndo, CanRedo,
-         SaveFile, SaveFileAs, OpenFile, GetFilePath,
+         SaveFile, SaveFileAs, OpenFile, OpenFileByPath, GetFilePath, GetRecentDecks,
          ProcessAIPrompt, GenerateDeckWithAI, AddSlideWithAI } from '../wailsjs/go/main/App';
 
 // ─── State ─────────────────────────────────────────────────────────
@@ -25,7 +25,10 @@ let state = {
   presenting: false,
   cmdPaletteOpen: false,
   shapeMenuOpen: false,
+  imageMenuOpen: false,
   fileMenuOpen: false,
+  showHomescreen: true, // Launch homescreen on startup always
+  recentDecks: [],
   filePath: '',
   contextMenu: null,
   editingText: false,
@@ -49,6 +52,11 @@ let thumbnailTimer = null;
 // ─── Initialize ────────────────────────────────────────────────────
 async function init() {
   state.deck = await GetDeck();
+  try {
+    state.recentDecks = await GetRecentDecks() || [];
+  } catch (e) {
+    console.error('Fetch recents error:', e);
+  }
   renderAppShell();
   setupKeyboardShortcuts();
   window.addEventListener('resize', updateCanvasScale);
@@ -74,6 +82,11 @@ function renderAppShell() {
   const app = document.getElementById('app');
   if (!app) return;
 
+  if (state.showHomescreen) {
+    app.innerHTML = renderHomescreen();
+    return;
+  }
+
   if (state.presenting) {
     app.innerHTML = renderPresentMode();
     setupPresentEvents();
@@ -85,6 +98,10 @@ function renderAppShell() {
       <div class="titlebar-left" style="-webkit-app-region: no-drag;">
         <img class="titlebar-logo" src="/logo.png" alt="open-pptx logo" />
         <span class="titlebar-app-name">open-pptx</span>
+
+        <button class="titlebar-file-btn" onclick="window.app.openHomescreen()" title="Open Homescreen Dashboard">
+          🏠 Home
+        </button>
 
         <div class="titlebar-file-wrapper">
           <button class="titlebar-file-btn ${state.fileMenuOpen ? 'active' : ''}" onclick="window.app.toggleFileMenu(event)">
@@ -273,6 +290,17 @@ function renderShapeHTML(shapeType, style) {
   }
 }
 
+const clipartIcons = [
+  { name: 'Rocket', svg: `<svg viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.71.19-1.81-.47-2.47l-2.06-2.06c-.66-.66-1.76-1.18-2.47-.47z"/><path d="M12 15l-3-3m5.5-2.5l-3-3M21.5 2.5s-4.5.5-8.5 4.5l-6 6c-.8.8-.8 2 0 2.8l3.7 3.7c.8.8 2 .8 2.8 0l6-6c4-4 4.5-8.5 4.5-8.5z"/></svg>` },
+  { name: 'Lightbulb', svg: `<svg viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2"><path d="M9 18h6m-5 3h4m-7-9.8a7 7 0 1110 0c-.9.9-1.5 2.1-1.5 3.3v.5h-7v-.5c0-1.2-.6-2.4-1.5-3.3z"/></svg>` },
+  { name: 'Chart', svg: `<svg viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>` },
+  { name: 'Target', svg: `<svg viewBox="0 0 24 24" fill="none" stroke="#E11D48" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>` },
+  { name: 'Gear', svg: `<svg viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>` },
+  { name: 'Cloud', svg: `<svg viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>` },
+  { name: 'Shield', svg: `<svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>` },
+  { name: 'Trophy', svg: `<svg viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6m12 5h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16v-2H4v2zm2-2l1.2-6.5A6 6 0 0 1 12 8a6 6 0 0 1 4.8 5.5L18 20H6z"/></svg>` },
+];
+
 // ─── Toolbar ───────────────────────────────────────────────────────
 function renderToolbar() {
   return `
@@ -296,6 +324,32 @@ function renderToolbar() {
             <button class="shape-menu-item" onclick="window.app.addShape('diamond')">◆ Diamond</button>
             <button class="shape-menu-item" onclick="window.app.addShape('arrow')">➔ Arrow</button>
             <button class="shape-menu-item" onclick="window.app.addShape('line')">➖ Line</button>
+          </div>
+        ` : ''}
+      </div>
+
+      <div class="toolbar-image-wrapper">
+        <button class="toolbar-btn ${state.imageMenuOpen ? 'active' : ''}" onclick="window.app.toggleImageMenu()" data-tooltip="Image & Clipart">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          Image / Icon ▾
+        </button>
+        ${state.imageMenuOpen ? `
+          <div class="image-menu-popover" onclick="event.stopPropagation()">
+            <button class="image-menu-item" onclick="window.app.importLocalImage()">
+              <span>📁 Import Local File...</span>
+            </button>
+            <button class="image-menu-item" onclick="window.app.promptImageURL()">
+              <span>🌐 Insert Image URL...</span>
+            </button>
+            <div class="image-menu-sep"></div>
+            <div class="clipart-title">🎨 Vector Icons & Cliparts</div>
+            <div class="clipart-grid">
+              ${clipartIcons.map(icon => `
+                <button class="clipart-item" title="${icon.name}" onclick="window.app.insertClipart('${encodeURIComponent(icon.svg)}')">
+                  ${icon.svg}
+                </button>
+              `).join('')}
+            </div>
           </div>
         ` : ''}
       </div>
@@ -353,7 +407,7 @@ function renderSlideElements() {
         break;
       case 'image':
         content = el.imageUrl
-          ? `<img src="${el.imageUrl}" style="width: 100%; height: 100%; object-fit: cover; border-radius: ${style.borderRadius || 0}px;" />`
+          ? `<img src="${el.imageUrl}" style="width: 100%; height: 100%; object-fit: contain; border-radius: ${style.borderRadius || 0}px; opacity: ${style.opacity ?? 1}; pointer-events: none;" />`
           : `<div class="empty-state" style="height: 100%;"><span style="font-size: 24px;">🖼</span><span style="font-size: 11px;">No image</span></div>`;
         break;
     }
@@ -499,6 +553,23 @@ function renderPropertiesPanel() {
         <div class="prop-row" style="margin-top: 8px;">
           <span class="prop-label">Radius</span>
           <input type="range" class="prop-slider" min="0" max="40" value="${style.borderRadius || 8}" oninput="window.app.updateStyle('borderRadius', parseInt(this.value))" />
+        </div>
+        <div class="prop-row">
+          <span class="prop-label">Opacity</span>
+          <input type="range" class="prop-slider" min="0" max="100" value="${(style.opacity ?? 1) * 100}" oninput="window.app.updateStyle('opacity', parseInt(this.value) / 100)" />
+        </div>
+      </div>
+    `;
+  } else if (el.type === 'image') {
+    typeSpecific = `
+      <div class="prop-section">
+        <div class="prop-section-title">Image & Clipart</div>
+        <div class="prop-row" style="margin-bottom: 8px;">
+          <button class="prop-select" style="width: 100%; cursor: pointer;" onclick="window.app.importLocalImage()">📁 Replace Image...</button>
+        </div>
+        <div class="prop-row">
+          <span class="prop-label">Radius</span>
+          <input type="range" class="prop-slider" min="0" max="40" value="${style.borderRadius || 0}" oninput="window.app.updateStyle('borderRadius', parseInt(this.value))" />
         </div>
         <div class="prop-row">
           <span class="prop-label">Opacity</span>
@@ -724,6 +795,117 @@ const commands = [
   { name: 'Delete Selected', shortcut: '⌫', action: () => window.app.deleteSelected() },
   { name: 'Duplicate Slide', shortcut: '⌘D', action: () => window.app.duplicateSlide() },
 ];
+
+// ─── Homescreen Overlay Dashboard ──────────────────────────────────
+function renderHomescreen() {
+  return `
+    <div class="homescreen-overlay">
+      <div class="homescreen-container">
+        <!-- Brand Header -->
+        <div class="homescreen-header">
+          <div class="homescreen-brand">
+            <img class="homescreen-logo" src="/logo.png" alt="open-pptx logo" />
+            <div>
+              <h1 class="homescreen-title">open-pptx</h1>
+              <p class="homescreen-subtitle">AI-Powered Presentation Studio & Slide Generator</p>
+            </div>
+          </div>
+          <button class="homescreen-close-btn" onclick="window.app.closeHomescreen()">
+            Go to Canvas →
+          </button>
+        </div>
+
+        <!-- AI Hero Prompt Input -->
+        <div class="homescreen-ai-hero">
+          <div class="homescreen-ai-hero-title">✨ What would you like to present today?</div>
+          <div class="homescreen-ai-input-box">
+            <input class="homescreen-ai-input" id="homescreenAIInput" type="text"
+                   placeholder="e.g. Create a 5-slide pitch deck for an AI Developer Tool startup..."
+                   onkeydown="if(event.key==='Enter') window.app.submitHomescreenAIPrompt()" />
+            <button class="homescreen-ai-send-btn" onclick="window.app.submitHomescreenAIPrompt()">
+              Generate Deck 🚀
+            </button>
+          </div>
+        </div>
+
+        <!-- Quick Start Templates -->
+        <div class="homescreen-section">
+          <div class="homescreen-section-title">⚡ Starter Templates</div>
+          <div class="homescreen-templates-grid">
+            <div class="template-card" onclick="window.app.useTemplate('pitch')">
+              <div class="template-icon">🚀</div>
+              <div class="template-name">Startup Pitch Deck</div>
+              <div class="template-desc">Title, Problem, Solution, Business Model & Team</div>
+            </div>
+            <div class="template-card" onclick="window.app.useTemplate('roadmap')">
+              <div class="template-icon">🗺️</div>
+              <div class="template-name">Product Roadmap</div>
+              <div class="template-desc">Vision, Milestones, Feature Matrix & KPIs</div>
+            </div>
+            <div class="template-card" onclick="window.app.useTemplate('architecture')">
+              <div class="template-icon">🏗️</div>
+              <div class="template-name">System Architecture</div>
+              <div class="template-desc">Overview, Data Flow, Components & Security</div>
+            </div>
+            <div class="template-card" onclick="window.app.useTemplate('qbr')">
+              <div class="template-icon">📊</div>
+              <div class="template-name">Quarterly Review</div>
+              <div class="template-desc">Performance Summary, Metrics & Future Goals</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Presentations & Quick Actions -->
+        <div class="homescreen-bottom-grid">
+          <div class="homescreen-section">
+            <div class="homescreen-section-header">
+              <div class="homescreen-section-title">📂 Recent Presentations</div>
+              <button class="homescreen-action-link" onclick="window.app.openFile()">Browse File System →</button>
+            </div>
+            ${(state.recentDecks && state.recentDecks.length > 0) ? `
+              <div class="recents-list">
+                ${state.recentDecks.map(item => `
+                  <div class="recent-item" onclick="window.app.openRecentFile('${escapeHtml(item.path)}')">
+                    <div class="recent-item-icon">📄</div>
+                    <div class="recent-item-info">
+                      <div class="recent-item-title">${escapeHtml(item.title || item.path.split('/').pop())}</div>
+                      <div class="recent-item-path">${escapeHtml(item.path)}</div>
+                    </div>
+                    <div class="recent-item-date">${escapeHtml(item.modified || '')}</div>
+                  </div>
+                `).join('')}
+              </div>
+            ` : `
+              <div class="recents-empty">
+                <span>No recent files found</span>
+                <button class="recents-empty-btn" onclick="window.app.openFile()">Open a file to get started</button>
+              </div>
+            `}
+          </div>
+
+          <!-- Quick Actions Panel -->
+          <div class="homescreen-quick-actions">
+            <div class="homescreen-section-title">🛠 Quick Actions</div>
+            <button class="quick-action-btn" onclick="window.app.newDeck()">
+              <span class="quick-action-icon">➕</span>
+              <div>
+                <div class="quick-action-title">Blank Presentation</div>
+                <div class="quick-action-desc">Start from scratch with a blank 16:9 canvas</div>
+              </div>
+            </button>
+            <button class="quick-action-btn" onclick="window.app.openFile()">
+              <span class="quick-action-icon">📂</span>
+              <div>
+                <div class="quick-action-title">Open Existing File</div>
+                <div class="quick-action-desc">Load .opptx or .json presentation file</div>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
 
 function renderCommandPalette() {
   return `
@@ -1166,6 +1348,109 @@ function escapeHtml(str) {
 
 // ─── Public API (window.app) ───────────────────────────────────────
 window.app = {
+  // Homescreen actions
+  openHomescreen() {
+    state.showHomescreen = true;
+    renderAppShell();
+  },
+
+  closeHomescreen() {
+    state.showHomescreen = false;
+    renderAppShell();
+  },
+
+  async openRecentFile(path) {
+    try {
+      const deck = await OpenFileByPath(path);
+      if (deck && deck.slides && deck.slides.length > 0) {
+        state.deck = deck;
+        state.currentSlide = 0;
+        state.selectedElement = null;
+        state.filePath = path;
+        state.showHomescreen = false;
+        renderAppShell();
+      }
+    } catch (e) {
+      console.error('Open recent failed:', e);
+    }
+  },
+
+  submitHomescreenAIPrompt() {
+    const input = document.getElementById('homescreenAIInput');
+    if (!input || !input.value.trim()) return;
+    const text = input.value.trim();
+    state.showHomescreen = false;
+    renderAppShell();
+    window.app.sendAIPrompt(text);
+  },
+
+  useTemplate(type) {
+    state.showHomescreen = false;
+    renderAppShell();
+    let prompt = '';
+    switch (type) {
+      case 'pitch':
+        prompt = 'Create a 5-slide startup pitch deck with title, problem, solution, business model, and team slides';
+        break;
+      case 'roadmap':
+        prompt = 'Create a 4-slide product roadmap presentation with vision, quarterly milestones, feature matrix, and metrics';
+        break;
+      case 'architecture':
+        prompt = 'Create a 4-slide technical architecture presentation with system overview, data flow, components, and security';
+        break;
+      case 'qbr':
+        prompt = 'Create a 4-slide quarterly business review presentation with performance summary, revenue metrics, challenges, and Q3 goals';
+        break;
+    }
+    window.app.sendAIPrompt(prompt);
+  },
+
+  // Image & Clipart actions
+  toggleImageMenu() {
+    state.imageMenuOpen = !state.imageMenuOpen;
+    renderAppShell();
+  },
+
+  async importLocalImage() {
+    state.imageMenuOpen = false;
+    try {
+      const dataUrl = await SelectImageFile();
+      if (dataUrl) {
+        state.deck = await AddImageElement(state.currentSlide, dataUrl);
+        const slide = getCurrentSlide();
+        state.selectedElement = slide.elements[slide.elements.length - 1].id;
+        renderAppShell();
+      }
+    } catch (e) {
+      console.error('Import image failed:', e);
+    }
+  },
+
+  promptImageURL() {
+    state.imageMenuOpen = false;
+    const url = prompt('Enter Image URL:');
+    if (url && url.trim()) {
+      window.app.insertImageURL(url.trim());
+    }
+  },
+
+  async insertImageURL(url) {
+    state.deck = await AddImageElement(state.currentSlide, url);
+    const slide = getCurrentSlide();
+    state.selectedElement = slide.elements[slide.elements.length - 1].id;
+    renderAppShell();
+  },
+
+  async insertClipart(encodedSvg) {
+    state.imageMenuOpen = false;
+    const svgStr = decodeURIComponent(encodedSvg);
+    const dataUrl = `data:image/svg+xml;utf8,${encodeURIComponent(svgStr)}`;
+    state.deck = await AddImageElement(state.currentSlide, dataUrl);
+    const slide = getCurrentSlide();
+    state.selectedElement = slide.elements[slide.elements.length - 1].id;
+    renderAppShell();
+  },
+
   // AI Co-pilot actions
   toggleAIPanel() {
     state.aiPanelOpen = !state.aiPanelOpen;

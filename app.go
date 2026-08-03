@@ -2,7 +2,11 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"open-pptx/internal/ai"
 	"open-pptx/internal/engine"
@@ -303,6 +307,76 @@ func (a *App) OpenFile() (engine.Deck, error) {
 // GetFilePath returns the current file path.
 func (a *App) GetFilePath() string {
 	return a.filePath
+}
+
+// GetRecentDecks returns recent presentation files.
+func (a *App) GetRecentDecks() []engine.RecentDeckItem {
+	return engine.GetRecentDecks()
+}
+
+// OpenFileByPath opens a presentation by path directly.
+func (a *App) OpenFileByPath(path string) (engine.Deck, error) {
+	d, err := engine.LoadDeck(path)
+	if err != nil {
+		return a.deck, err
+	}
+	a.deck = *d
+	a.filePath = path
+	a.history = engine.NewHistory(100)
+	a.history.Push(a.deck)
+	return a.deck, nil
+}
+
+// SelectImageFile opens a file dialog to select an image and returns a base64 data URL.
+func (a *App) SelectImageFile() (string, error) {
+	path, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: "Select Image or Clipart",
+		Filters: []runtime.FileFilter{
+			{DisplayName: "Image Files (*.png, *.jpg, *.jpeg, *.webp, *.svg, *.gif)", Pattern: "*.png;*.jpg;*.jpeg;*.webp;*.svg;*.gif"},
+		},
+	})
+	if err != nil || path == "" {
+		return "", err
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	ext := strings.ToLower(filepath.Ext(path))
+	mimeType := "image/png"
+	switch ext {
+	case ".jpg", ".jpeg":
+		mimeType = "image/jpeg"
+	case ".webp":
+		mimeType = "image/webp"
+	case ".svg":
+		mimeType = "image/svg+xml"
+	case ".gif":
+		mimeType = "image/gif"
+	}
+	base64Str := base64.StdEncoding.EncodeToString(data)
+	return fmt.Sprintf("data:%s;base64,%s", mimeType, base64Str), nil
+}
+
+// AddImageElement adds an image element to the specified slide with default positioning.
+func (a *App) AddImageElement(slideIndex int, imageSrc string) engine.Deck {
+	if slideIndex < 0 || slideIndex >= len(a.deck.Slides) {
+		return a.deck
+	}
+	el := engine.Element{
+		ID:       fmt.Sprintf("el-%d", len(a.deck.Slides[slideIndex].Elements)+1),
+		Type:     "image",
+		ImageURL: imageSrc,
+		Position: engine.Position{X: 200, Y: 120, W: 320, H: 240},
+		Style: engine.Style{
+			BorderRadius: 8,
+			Opacity:      1,
+		},
+		ZIndex: 5,
+	}
+	a.deck.Slides[slideIndex].Elements = append(a.deck.Slides[slideIndex].Elements, el)
+	a.pushHistory()
+	return a.deck
 }
 
 // --- AI Operations ---

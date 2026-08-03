@@ -6,6 +6,10 @@ export function AddElement(arg1, arg2) {
   return window['go']['main']['App']['AddElement'](arg1, arg2);
 }
 
+export function AddImageElement(arg1, arg2) {
+  return window['go']['main']['App']['AddImageElement'](arg1, arg2);
+}
+
 export function AddShapeElement(arg1, arg2) {
   return window['go']['main']['App']['AddShapeElement'](arg1, arg2);
 }
@@ -50,12 +54,20 @@ export function GetFilePath() {
   return window['go']['main']['App']['GetFilePath']();
 }
 
+export function GetRecentDecks() {
+  return window['go']['main']['App']['GetRecentDecks']();
+}
+
 export function NewDeck() {
   return window['go']['main']['App']['NewDeck']();
 }
 
 export function OpenFile() {
   return window['go']['main']['App']['OpenFile']();
+}
+
+export function OpenFileByPath(arg1) {
+  return window['go']['main']['App']['OpenFileByPath'](arg1);
 }
 
 export function ProcessAIPrompt(arg1, arg2) {
@@ -76,6 +88,10 @@ export function SaveFile() {
 
 export function SaveFileAs() {
   return window['go']['main']['App']['SaveFileAs']();
+}
+
+export function SelectImageFile() {
+  return window['go']['main']['App']['SelectImageFile']();
 }
 
 export function SetTheme(arg1) {

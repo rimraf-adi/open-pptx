@@ -5,6 +5,8 @@ import {main} from '../models';
 
 export function AddElement(arg1:number,arg2:string):Promise<engine.Deck>;
 
+export function AddImageElement(arg1:number,arg2:string):Promise<engine.Deck>;
+
 export function AddShapeElement(arg1:number,arg2:string):Promise<engine.Deck>;
 
 export function AddSlide(arg1:number):Promise<engine.Deck>;
@@ -27,9 +29,13 @@ export function GetDeck():Promise<engine.Deck>;
 
 export function GetFilePath():Promise<string>;
 
+export function GetRecentDecks():Promise<Array<engine.RecentDeckItem>>;
+
 export function NewDeck():Promise<engine.Deck>;
 
 export function OpenFile():Promise<engine.Deck>;
+
+export function OpenFileByPath(arg1:string):Promise<engine.Deck>;
 
 export function ProcessAIPrompt(arg1:number,arg2:string):Promise<main.AIResult>;
 
@@ -40,6 +46,8 @@ export function ReorderSlide(arg1:number,arg2:number):Promise<engine.Deck>;
 export function SaveFile():Promise<string>;
 
 export function SaveFileAs():Promise<string>;
+
+export function SelectImageFile():Promise<string>;
 
 export function SetTheme(arg1:engine.Theme):Promise<engine.Deck>;
 

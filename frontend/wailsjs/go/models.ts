@@ -259,6 +259,22 @@ export namespace engine {
 	
 	
 	
+	export class RecentDeckItem {
+	    path: string;
+	    title: string;
+	    modified: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new RecentDeckItem(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.title = source["title"];
+	        this.modified = source["modified"];
+	    }
+	}
 	
 	
 	

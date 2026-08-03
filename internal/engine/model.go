@@ -345,7 +345,11 @@ func SaveDeck(d *Deck, path string) error {
 		return fmt.Errorf("create dir: %w", err)
 	}
 
-	return os.WriteFile(path, data, 0644)
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		return err
+	}
+	AddRecentDeck(path, d.Meta.Title)
+	return nil
 }
 
 // LoadDeck loads a deck from a .opptx file (JSON).
@@ -360,7 +364,60 @@ func LoadDeck(path string) (*Deck, error) {
 		return nil, fmt.Errorf("unmarshal deck: %w", err)
 	}
 
+	AddRecentDeck(path, d.Meta.Title)
 	return &d, nil
+}
+
+// --- Recent Files ---
+
+type RecentDeckItem struct {
+	Path     string `json:"path"`
+	Title    string `json:"title"`
+	Modified string `json:"modified"`
+}
+
+func GetRecentDecks() []RecentDeckItem {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil
+	}
+	recentsPath := filepath.Join(home, ".open-pptx-recents.json")
+	data, err := os.ReadFile(recentsPath)
+	if err != nil {
+		return nil
+	}
+	var items []RecentDeckItem
+	_ = json.Unmarshal(data, &items)
+	return items
+}
+
+func AddRecentDeck(path, title string) {
+	if path == "" {
+		return
+	}
+	if title == "" {
+		title = filepath.Base(path)
+	}
+	items := GetRecentDecks()
+	var updated []RecentDeckItem
+	newItem := RecentDeckItem{
+		Path:     path,
+		Title:    title,
+		Modified: time.Now().Format("2006-01-02 15:04"),
+	}
+	updated = append(updated, newItem)
+	for _, item := range items {
+		if item.Path != path && len(updated) < 10 {
+			updated = append(updated, item)
+		}
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return
+	}
+	recentsPath := filepath.Join(home, ".open-pptx-recents.json")
+	data, _ := json.MarshalIndent(updated, "", "  ")
+	_ = os.WriteFile(recentsPath, data, 0644)
 }
 
 // --- ID Generation ---
