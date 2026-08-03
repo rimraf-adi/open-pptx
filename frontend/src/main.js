@@ -25,6 +25,8 @@ let state = {
   presenting: false,
   cmdPaletteOpen: false,
   shapeMenuOpen: false,
+  fileMenuOpen: false,
+  filePath: '',
   contextMenu: null,
   editingText: false,
   // AI Co-pilot state
@@ -80,9 +82,46 @@ function renderAppShell() {
 
   app.innerHTML = `
     <div class="titlebar">
-      <div class="titlebar-brand">
+      <div class="titlebar-left" style="-webkit-app-region: no-drag;">
         <img class="titlebar-logo" src="/logo.png" alt="open-pptx logo" />
-        <span class="titlebar-title" id="deckTitleText">${escapeHtml(state.deck?.meta?.title || 'open-pptx')}</span>
+        <span class="titlebar-app-name">open-pptx</span>
+
+        <div class="titlebar-file-wrapper">
+          <button class="titlebar-file-btn ${state.fileMenuOpen ? 'active' : ''}" onclick="window.app.toggleFileMenu(event)">
+            File ▾
+          </button>
+          ${state.fileMenuOpen ? `
+            <div class="file-menu-popover" onclick="event.stopPropagation()">
+              <button class="file-menu-item" onclick="window.app.newDeck()">
+                <span>📄 New Presentation</span><span class="file-shortcut">⌘N</span>
+              </button>
+              <button class="file-menu-item" onclick="window.app.openFile()">
+                <span>📂 Open Presentation...</span><span class="file-shortcut">⌘O</span>
+              </button>
+              <div class="file-menu-sep"></div>
+              <button class="file-menu-item" onclick="window.app.saveFile()">
+                <span>💾 Save</span><span class="file-shortcut">⌘S</span>
+              </button>
+              <button class="file-menu-item" onclick="window.app.saveFileAs()">
+                <span>💾 Save As...</span><span class="file-shortcut">⌘⇧S</span>
+              </button>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+
+      <div class="titlebar-center">
+        <span class="titlebar-title" id="deckTitleText">${escapeHtml(state.deck?.meta?.title || 'Untitled Presentation')}</span>
+        ${state.filePath ? `<span class="titlebar-filepath-badge" title="${escapeHtml(state.filePath)}">● Saved</span>` : `<span class="titlebar-filepath-badge unsaved">● Draft</span>`}
+      </div>
+
+      <div class="titlebar-right" style="-webkit-app-region: no-drag;">
+        <button class="titlebar-action-btn" onclick="window.app.saveFile()" data-tooltip="Save (⌘S)">
+          💾 Save
+        </button>
+        <button class="titlebar-action-btn" onclick="window.app.openFile()" data-tooltip="Open (⌘O)">
+          📂 Open
+        </button>
       </div>
     </div>
     <div class="app-layout">
@@ -1521,36 +1560,59 @@ ${content}
     updateCanvasOnly();
   },
 
+  toggleFileMenu(e) {
+    if (e) e.stopPropagation();
+    state.fileMenuOpen = !state.fileMenuOpen;
+    renderAppShell();
+  },
+
   // File operations
   async newDeck() {
+    state.fileMenuOpen = false;
     state.deck = await NewDeck();
     state.currentSlide = 0;
     state.selectedElement = null;
+    state.filePath = '';
     renderAppShell();
   },
 
   async openFile() {
+    state.fileMenuOpen = false;
     try {
-      state.deck = await OpenFile();
-      state.currentSlide = 0;
-      state.selectedElement = null;
-      renderAppShell();
+      const deck = await OpenFile();
+      if (deck && deck.slides && deck.slides.length > 0) {
+        state.deck = deck;
+        state.currentSlide = 0;
+        state.selectedElement = null;
+        state.filePath = await GetFilePath();
+        renderAppShell();
+      }
     } catch (e) {
       console.error('Open failed:', e);
     }
   },
 
   async saveFile() {
+    state.fileMenuOpen = false;
     try {
-      await SaveFile();
+      const savedPath = await SaveFile();
+      if (savedPath) {
+        state.filePath = savedPath;
+        renderAppShell();
+      }
     } catch (e) {
       console.error('Save failed:', e);
     }
   },
 
   async saveFileAs() {
+    state.fileMenuOpen = false;
     try {
-      await SaveFileAs();
+      const savedPath = await SaveFileAs();
+      if (savedPath) {
+        state.filePath = savedPath;
+        renderAppShell();
+      }
     } catch (e) {
       console.error('Save As failed:', e);
     }
