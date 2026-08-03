@@ -807,66 +807,76 @@ function renderHomescreen() {
             <img class="homescreen-logo" src="/logo.png" alt="open-pptx logo" />
             <div>
               <h1 class="homescreen-title">open-pptx</h1>
-              <p class="homescreen-subtitle">AI-Powered Presentation Studio & Slide Generator</p>
+              <p class="homescreen-subtitle">Professional Presentation Studio & AI Deck Engine</p>
             </div>
           </div>
           <button class="homescreen-close-btn" onclick="window.app.closeHomescreen()">
-            Go to Canvas →
+            Open Editor →
           </button>
         </div>
 
         <!-- AI Hero Prompt Input -->
         <div class="homescreen-ai-hero">
-          <div class="homescreen-ai-hero-title">✨ What would you like to present today?</div>
+          <div class="homescreen-ai-hero-title">Generate Presentation</div>
           <div class="homescreen-ai-input-box">
             <input class="homescreen-ai-input" id="homescreenAIInput" type="text"
-                   placeholder="e.g. Create a 5-slide pitch deck for an AI Developer Tool startup..."
+                   placeholder="Enter presentation topic or paste outline (e.g. Seed-stage SaaS pitch deck)..."
                    onkeydown="if(event.key==='Enter') window.app.submitHomescreenAIPrompt()" />
             <button class="homescreen-ai-send-btn" onclick="window.app.submitHomescreenAIPrompt()">
-              Generate Deck 🚀
+              Generate
             </button>
           </div>
         </div>
 
-        <!-- Quick Start Templates -->
+        <!-- Starter Templates -->
         <div class="homescreen-section">
-          <div class="homescreen-section-title">⚡ Starter Templates</div>
+          <div class="homescreen-section-title">Presentation Templates</div>
           <div class="homescreen-templates-grid">
             <div class="template-card" onclick="window.app.useTemplate('pitch')">
-              <div class="template-icon">🚀</div>
-              <div class="template-name">Startup Pitch Deck</div>
-              <div class="template-desc">Title, Problem, Solution, Business Model & Team</div>
+              <div class="template-icon-svg">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.71.19-1.81-.47-2.47l-2.06-2.06c-.66-.66-1.76-1.18-2.47-.47z"/><path d="M12 15l-3-3m5.5-2.5l-3-3M21.5 2.5s-4.5.5-8.5 4.5l-6 6c-.8.8-.8 2 0 2.8l3.7 3.7c.8.8 2 .8 2.8 0l6-6c4-4 4.5-8.5 4.5-8.5z"/></svg>
+              </div>
+              <div class="template-name">Pitch Deck</div>
+              <div class="template-desc">Title, Problem, Solution, Model & Team Overview</div>
             </div>
             <div class="template-card" onclick="window.app.useTemplate('roadmap')">
-              <div class="template-icon">🗺️</div>
-              <div class="template-name">Product Roadmap</div>
+              <div class="template-icon-svg">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              </div>
+              <div class="template-name">Product Strategy</div>
               <div class="template-desc">Vision, Milestones, Feature Matrix & KPIs</div>
             </div>
             <div class="template-card" onclick="window.app.useTemplate('architecture')">
-              <div class="template-icon">🏗️</div>
+              <div class="template-icon-svg">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              </div>
               <div class="template-name">System Architecture</div>
-              <div class="template-desc">Overview, Data Flow, Components & Security</div>
+              <div class="template-desc">Overview, Infrastructure, Data Flow & Security</div>
             </div>
             <div class="template-card" onclick="window.app.useTemplate('qbr')">
-              <div class="template-icon">📊</div>
-              <div class="template-name">Quarterly Review</div>
-              <div class="template-desc">Performance Summary, Metrics & Future Goals</div>
+              <div class="template-icon-svg">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              </div>
+              <div class="template-name">Executive Summary</div>
+              <div class="template-desc">Performance Metrics, Revenue & Strategic Goals</div>
             </div>
           </div>
         </div>
 
-        <!-- Recent Presentations & Quick Actions -->
+        <!-- Recent Presentations & Actions -->
         <div class="homescreen-bottom-grid">
           <div class="homescreen-section">
             <div class="homescreen-section-header">
-              <div class="homescreen-section-title">📂 Recent Presentations</div>
+              <div class="homescreen-section-title">Recent Files</div>
               <button class="homescreen-action-link" onclick="window.app.openFile()">Browse File System →</button>
             </div>
             ${(state.recentDecks && state.recentDecks.length > 0) ? `
               <div class="recents-list">
                 ${state.recentDecks.map(item => `
                   <div class="recent-item" onclick="window.app.openRecentFile('${escapeHtml(item.path)}')">
-                    <div class="recent-item-icon">📄</div>
+                    <div class="recent-item-icon-svg">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+                    </div>
                     <div class="recent-item-info">
                       <div class="recent-item-title">${escapeHtml(item.title || item.path.split('/').pop())}</div>
                       <div class="recent-item-path">${escapeHtml(item.path)}</div>
@@ -877,27 +887,31 @@ function renderHomescreen() {
               </div>
             ` : `
               <div class="recents-empty">
-                <span>No recent files found</span>
-                <button class="recents-empty-btn" onclick="window.app.openFile()">Open a file to get started</button>
+                <span>No recent files</span>
+                <button class="recents-empty-btn" onclick="window.app.openFile()">Open File</button>
               </div>
             `}
           </div>
 
           <!-- Quick Actions Panel -->
           <div class="homescreen-quick-actions">
-            <div class="homescreen-section-title">🛠 Quick Actions</div>
+            <div class="homescreen-section-title">Quick Actions</div>
             <button class="quick-action-btn" onclick="window.app.newDeck()">
-              <span class="quick-action-icon">➕</span>
+              <div class="quick-action-icon-svg">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </div>
               <div>
-                <div class="quick-action-title">Blank Presentation</div>
-                <div class="quick-action-desc">Start from scratch with a blank 16:9 canvas</div>
+                <div class="quick-action-title">New Presentation</div>
+                <div class="quick-action-desc">Start with a blank 16:9 canvas</div>
               </div>
             </button>
             <button class="quick-action-btn" onclick="window.app.openFile()">
-              <span class="quick-action-icon">📂</span>
+              <div class="quick-action-icon-svg">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+              </div>
               <div>
-                <div class="quick-action-title">Open Existing File</div>
-                <div class="quick-action-desc">Load .opptx or .json presentation file</div>
+                <div class="quick-action-title">Open File</div>
+                <div class="quick-action-desc">Load .opptx or .json presentation</div>
               </div>
             </button>
           </div>

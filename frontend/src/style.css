@@ -1471,16 +1471,17 @@ html, body {
 
 /* AI Hero Box */
 .homescreen-ai-hero {
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(124, 58, 237, 0.08) 100%);
-  border: 1px solid rgba(37, 99, 235, 0.2);
-  border-radius: var(--radius-xl);
-  padding: 24px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
+  box-shadow: var(--shadow-sm);
 }
 .homescreen-ai-hero-title {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-primary);
 }
@@ -1491,33 +1492,32 @@ html, body {
 }
 .homescreen-ai-input {
   flex: 1;
-  background: var(--bg-surface);
+  background: var(--bg-elevated);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-pill);
-  padding: 12px 20px;
-  font-size: 14px;
+  border-radius: var(--radius-md);
+  padding: 10px 16px;
+  font-size: 13px;
   color: var(--text-primary);
   outline: none;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 .homescreen-ai-input:focus {
   border-color: var(--accent-blue);
-  box-shadow: 0 0 16px rgba(37, 99, 235, 0.2);
+  box-shadow: 0 0 12px rgba(37, 99, 235, 0.15);
 }
 .homescreen-ai-send-btn {
-  padding: 12px 24px;
-  background: var(--accent-gradient);
+  padding: 10px 20px;
+  background: #0F172A;
   color: white;
   border: none;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-md);
   font-weight: 600;
   font-size: 13px;
   cursor: pointer;
   transition: all var(--transition-fast);
 }
 .homescreen-ai-send-btn:hover {
-  transform: scale(1.02);
-  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.4);
+  background: #1E293B;
 }
 
 /* Starter Templates Grid */
@@ -1532,9 +1532,11 @@ html, body {
   justify-content: space-between;
 }
 .homescreen-section-title {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--text-primary);
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
 }
 .homescreen-action-link {
   background: none;
@@ -1566,14 +1568,19 @@ html, body {
 }
 .template-card:hover {
   border-color: var(--accent-blue);
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-sm);
 }
-.template-icon {
-  font-size: 28px;
+.template-icon-svg {
+  width: 40px;
+  height: 40px;
+  background: rgba(37, 99, 235, 0.08);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .template-name {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
 }
@@ -1581,6 +1588,17 @@ html, body {
   font-size: 11px;
   color: var(--text-muted);
   line-height: 1.4;
+}
+
+.recent-item-icon-svg, .quick-action-icon-svg {
+  width: 36px;
+  height: 36px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 /* Bottom Recents & Quick Actions Grid */
