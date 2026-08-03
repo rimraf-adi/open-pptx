@@ -274,13 +274,7 @@ func NewElement(elementType string) Element {
 			FontFamily: "Inter",
 		}
 	case "shape":
-		el.ShapeType = "rect"
-		el.Position = Position{X: 150, Y: 150, W: 200, H: 150}
-		el.Style = Style{
-			BgColor:      "#2563EB",
-			BorderRadius: 8,
-			Opacity:      1,
-		}
+		return NewShapeElement("rect")
 	case "image":
 		el.Position = Position{X: 100, Y: 100, W: 300, H: 200}
 		el.Content = ""
@@ -296,6 +290,43 @@ func NewElement(elementType string) Element {
 		}
 	}
 	return el
+}
+
+// NewShapeElement creates a shape element of a specific type (rect, circle, triangle, star, diamond, arrow, line).
+func NewShapeElement(shapeType string) Element {
+	if shapeType == "" {
+		shapeType = "rect"
+	}
+	w, h := 200.0, 150.0
+	if shapeType == "circle" || shapeType == "star" || shapeType == "diamond" {
+		w, h = 160.0, 160.0
+	} else if shapeType == "line" {
+		w, h = 300.0, 6.0
+	} else if shapeType == "arrow" || shapeType == "triangle" {
+		w, h = 180.0, 120.0
+	}
+
+	bgColor := "#2563EB"
+	if shapeType == "star" || shapeType == "diamond" {
+		bgColor = "#7C3AED"
+	} else if shapeType == "triangle" {
+		bgColor = "#059669"
+	} else if shapeType == "arrow" {
+		bgColor = "#D97706"
+	}
+
+	return Element{
+		ID:        generateID("el"),
+		Type:      "shape",
+		ShapeType: shapeType,
+		Position:  Position{X: 150, Y: 150, W: w, H: h},
+		Style: Style{
+			BgColor:      bgColor,
+			BorderRadius: 8,
+			Opacity:      1,
+		},
+		ZIndex: 1,
+	}
 }
 
 // --- Persistence ---

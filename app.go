@@ -162,6 +162,24 @@ func (a *App) AddElement(slideIndex int, elementType string) engine.Deck {
 	return a.deck
 }
 
+// AddShapeElement adds a specific shape type to the specified slide.
+func (a *App) AddShapeElement(slideIndex int, shapeType string) engine.Deck {
+	if slideIndex < 0 || slideIndex >= len(a.deck.Slides) {
+		return a.deck
+	}
+	el := engine.NewShapeElement(shapeType)
+	maxZ := 0
+	for _, existing := range a.deck.Slides[slideIndex].Elements {
+		if existing.ZIndex > maxZ {
+			maxZ = existing.ZIndex
+		}
+	}
+	el.ZIndex = maxZ + 1
+	a.deck.Slides[slideIndex].Elements = append(a.deck.Slides[slideIndex].Elements, el)
+	a.pushHistory()
+	return a.deck
+}
+
 // UpdateElement updates an element's properties on the specified slide.
 func (a *App) UpdateElement(slideIndex int, element engine.Element) engine.Deck {
 	if slideIndex < 0 || slideIndex >= len(a.deck.Slides) {

@@ -4,6 +4,8 @@ import {engine} from '../models';
 
 export function AddElement(arg1:number,arg2:string):Promise<engine.Deck>;
 
+export function AddShapeElement(arg1:number,arg2:string):Promise<engine.Deck>;
+
 export function AddSlide(arg1:number):Promise<engine.Deck>;
 
 export function AddSlideWithAI(arg1:string):Promise<engine.Deck>;

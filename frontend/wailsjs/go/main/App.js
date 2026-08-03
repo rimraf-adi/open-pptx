@@ -6,6 +6,10 @@ export function AddElement(arg1, arg2) {
   return window['go']['main']['App']['AddElement'](arg1, arg2);
 }
 
+export function AddShapeElement(arg1, arg2) {
+  return window['go']['main']['App']['AddShapeElement'](arg1, arg2);
+}
+
 export function AddSlide(arg1) {
   return window['go']['main']['App']['AddSlide'](arg1);
 }

@@ -6,7 +6,7 @@ import './style.css';
 
 // Wails runtime and Go bindings
 import { GetDeck, NewDeck, AddSlide, DeleteSlide, DuplicateSlide, ReorderSlide,
-         AddElement, UpdateElement, DeleteElement, UpdateDeckMeta, UpdateSlideBg,
+         AddElement, AddShapeElement, UpdateElement, DeleteElement, UpdateDeckMeta, UpdateSlideBg,
          Undo, Redo, CanUndo, CanRedo,
          SaveFile, SaveFileAs, OpenFile, GetFilePath,
          GenerateDeckWithAI, AddSlideWithAI } from '../wailsjs/go/main/App';
@@ -24,6 +24,7 @@ let state = {
   canvasScale: 1,
   presenting: false,
   cmdPaletteOpen: false,
+  shapeMenuOpen: false,
   contextMenu: null,
   editingText: false,
   // AI Co-pilot state
@@ -185,6 +186,53 @@ function renderSidebar() {
   `;
 }
 
+// ─── Preset Color Palette ──────────────────────────────────────────
+const presetColors = [
+  '#0F172A', '#334155', '#64748B', '#94A3B8', '#F1F5F9', '#FFFFFF',
+  '#2563EB', '#3B82F6', '#60A5FA', '#93C5FD', '#DBEAFE',
+  '#7C3AED', '#8B5CF6', '#A78BFA', '#C4B5FD', '#EDE9FE',
+  '#059669', '#10B981', '#34D399', '#6EE7B7', '#D1FAE5',
+  '#D97706', '#F59E0B', '#FBBF24', '#FDE68A', '#FEF3C7',
+  '#E11D48', '#F43F5E', '#FB7185', '#FDA4AF', '#FFE4E6',
+];
+
+function renderColorSwatches(currentValue, updateFnName) {
+  return `
+    <div class="color-swatches">
+      ${presetColors.map(c => `
+        <button class="color-swatch-btn ${c.toLowerCase() === (currentValue || '').toLowerCase() ? 'active' : ''}"
+                style="background: ${c};"
+                title="${c}"
+                onclick="window.app.${updateFnName}('${c}')"></button>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderShapeHTML(shapeType, style) {
+  const bg = style.bgColor || '#2563EB';
+  const op = style.opacity ?? 1;
+  const border = style.borderColor ? `border: ${style.borderWidth || 2}px solid ${style.borderColor};` : '';
+
+  switch (shapeType) {
+    case 'circle':
+      return `<div class="element-shape" style="background: ${bg}; border-radius: 50%; opacity: ${op}; ${border}"></div>`;
+    case 'triangle':
+      return `<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style="opacity: ${op};"><polygon points="50,0 100,100 0,100" fill="${bg}"/></svg>`;
+    case 'star':
+      return `<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style="opacity: ${op};"><polygon points="50,0 63,38 100,38 69,59 82,100 50,75 18,100 31,59 0,38 37,38" fill="${bg}"/></svg>`;
+    case 'diamond':
+      return `<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style="opacity: ${op};"><polygon points="50,0 100,50 50,100 0,50" fill="${bg}"/></svg>`;
+    case 'arrow':
+      return `<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style="opacity: ${op};"><polygon points="0,35 60,35 60,10 100,50 60,90 60,65 0,65" fill="${bg}"/></svg>`;
+    case 'line':
+      return `<div class="element-shape" style="background: ${bg}; border-radius: 4px; opacity: ${op}; height: 100%; width: 100%;"></div>`;
+    case 'rect':
+    default:
+      return `<div class="element-shape" style="background: ${bg}; border-radius: ${style.borderRadius || 8}px; opacity: ${op}; ${border}"></div>`;
+  }
+}
+
 // ─── Toolbar ───────────────────────────────────────────────────────
 function renderToolbar() {
   return `
@@ -193,10 +241,25 @@ function renderToolbar() {
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>
         Text
       </button>
-      <button class="toolbar-btn" onclick="window.app.addElement('shape')" data-tooltip="Shape">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>
-        Shape
-      </button>
+
+      <div class="toolbar-shape-wrapper">
+        <button class="toolbar-btn ${state.shapeMenuOpen ? 'active' : ''}" onclick="window.app.toggleShapeMenu()" data-tooltip="Shapes">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>
+          Shapes ▾
+        </button>
+        ${state.shapeMenuOpen ? `
+          <div class="shape-menu-popover" onclick="event.stopPropagation()">
+            <button class="shape-menu-item" onclick="window.app.addShape('rect')">⬛ Rectangle</button>
+            <button class="shape-menu-item" onclick="window.app.addShape('circle')">🟡 Circle</button>
+            <button class="shape-menu-item" onclick="window.app.addShape('triangle')">🔺 Triangle</button>
+            <button class="shape-menu-item" onclick="window.app.addShape('star')">⭐ Star</button>
+            <button class="shape-menu-item" onclick="window.app.addShape('diamond')">◆ Diamond</button>
+            <button class="shape-menu-item" onclick="window.app.addShape('arrow')">➔ Arrow</button>
+            <button class="shape-menu-item" onclick="window.app.addShape('line')">➖ Line</button>
+          </div>
+        ` : ''}
+      </div>
+
       <button class="toolbar-btn" onclick="window.app.addElement('code')" data-tooltip="Code Block">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
         Code
@@ -243,8 +306,7 @@ function renderSlideElements() {
         >${escapeHtml(el.content || 'Click to edit text')}</div>`;
         break;
       case 'shape':
-        const radius = el.shapeType === 'circle' ? '50%' : `${style.borderRadius || 8}px`;
-        content = `<div class="element-shape" style="background: ${style.bgColor || '#2563EB'}; border-radius: ${radius}; opacity: ${style.opacity ?? 1}; ${style.borderColor ? `border: ${style.borderWidth || 2}px solid ${style.borderColor};` : ''}"></div>`;
+        content = renderShapeHTML(el.shapeType, style);
         break;
       case 'code':
         content = `<div class="element-code" style="font-size: ${style.fontSize || 14}px; color: ${style.color || '#0F172A'}; background: ${style.bgColor || '#F1F5F9'}; border-radius: ${style.borderRadius || 12}px; font-family: ${style.fontFamily || "'JetBrains Mono', monospace"};">${escapeHtml(el.content || '// your code here')}</div>`;
@@ -293,11 +355,13 @@ function renderPropertiesPanel() {
       <div class="properties-panel">
         <div class="properties-header"><h3>Properties</h3></div>
         <div class="prop-section">
-          <div class="prop-section-title">Slide</div>
-          <div class="prop-row">
-            <span class="prop-label">Bg</span>
-            <input type="color" class="prop-color-input" value="${getCurrentSlide().bgColor || '#FFFFFF'}" onchange="window.app.updateSlideBg(this.value)" />
-            <input type="text" class="prop-input" value="${getCurrentSlide().bgColor || '#FFFFFF'}" onchange="window.app.updateSlideBg(this.value)" />
+          <div class="prop-section-title">Slide Background</div>
+          <div class="prop-row" style="flex-direction: column; align-items: stretch; gap: 4px;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <span class="prop-label">Color</span>
+              <input type="color" class="prop-color-input" value="${getCurrentSlide().bgColor || '#FFFFFF'}" onchange="window.app.updateSlideBg(this.value)" />
+            </div>
+            ${renderColorSwatches(getCurrentSlide().bgColor || '#FFFFFF', 'updateSlideBg')}
           </div>
         </div>
         <div class="prop-section">
@@ -319,50 +383,85 @@ function renderPropertiesPanel() {
     typeSpecific = `
       <div class="prop-section">
         <div class="prop-section-title">Typography</div>
+
+        <div class="prop-row">
+          <span class="prop-label">Font</span>
+          <select class="prop-select" onchange="window.app.updateStyle('fontFamily', this.value)">
+            <option value="Inter" ${(style.fontFamily || 'Inter') === 'Inter' ? 'selected' : ''}>Inter (Sans)</option>
+            <option value="Roboto" ${style.fontFamily === 'Roboto' ? 'selected' : ''}>Roboto</option>
+            <option value="JetBrains Mono" ${style.fontFamily === 'JetBrains Mono' ? 'selected' : ''}>JetBrains Mono</option>
+            <option value="Outfit" ${style.fontFamily === 'Outfit' ? 'selected' : ''}>Outfit</option>
+            <option value="Playfair Display" ${style.fontFamily === 'Playfair Display' ? 'selected' : ''}>Playfair (Serif)</option>
+          </select>
+        </div>
+
         <div class="prop-row">
           <span class="prop-label">Size</span>
-          <input type="number" id="propFontSize" class="prop-input" value="${style.fontSize || 24}" onchange="window.app.updateStyle('fontSize', parseInt(this.value))" />
+          <div class="format-btn-group">
+            <button class="format-btn" onclick="window.app.stepFontSize(-2)">-</button>
+            <input type="number" id="propFontSize" class="prop-input" style="text-align: center; width: 50px;" value="${style.fontSize || 24}" onchange="window.app.updateStyle('fontSize', parseInt(this.value))" />
+            <button class="format-btn" onclick="window.app.stepFontSize(2)">+</button>
+          </div>
         </div>
+
         <div class="prop-row">
-          <span class="prop-label">Wt</span>
-          <select class="prop-select" onchange="window.app.updateStyle('fontWeight', this.value)">
-            <option value="normal" ${style.fontWeight === 'normal' ? 'selected' : ''}>Regular</option>
-            <option value="500" ${style.fontWeight === '500' ? 'selected' : ''}>Medium</option>
-            <option value="600" ${style.fontWeight === '600' ? 'selected' : ''}>Semibold</option>
-            <option value="bold" ${style.fontWeight === 'bold' ? 'selected' : ''}>Bold</option>
-            <option value="800" ${style.fontWeight === '800' ? 'selected' : ''}>Extra Bold</option>
-          </select>
+          <span class="prop-label">Weight</span>
+          <div class="format-btn-group">
+            <button class="format-btn ${(style.fontWeight || 'normal') === 'normal' ? 'active' : ''}" onclick="window.app.updateStyle('fontWeight', 'normal')">Regular</button>
+            <button class="format-btn ${style.fontWeight === '600' ? 'active' : ''}" onclick="window.app.updateStyle('fontWeight', '600')">Semi</button>
+            <button class="format-btn ${style.fontWeight === 'bold' ? 'active' : ''}" onclick="window.app.updateStyle('fontWeight', 'bold')">Bold</button>
+          </div>
         </div>
-        <div class="prop-row">
-          <span class="prop-label">Clr</span>
-          <input type="color" class="prop-color-input" value="${style.color || '#0F172A'}" onchange="window.app.updateStyle('color', this.value)" />
-          <input type="text" class="prop-input" value="${style.color || '#0F172A'}" onchange="window.app.updateStyle('color', this.value)" />
-        </div>
+
         <div class="prop-row">
           <span class="prop-label">Align</span>
-          <select class="prop-select" onchange="window.app.updateStyle('textAlign', this.value)">
-            <option value="left" ${style.textAlign === 'left' ? 'selected' : ''}>Left</option>
-            <option value="center" ${style.textAlign === 'center' ? 'selected' : ''}>Center</option>
-            <option value="right" ${style.textAlign === 'right' ? 'selected' : ''}>Right</option>
-          </select>
+          <div class="format-btn-group">
+            <button class="format-btn ${(style.textAlign || 'left') === 'left' ? 'active' : ''}" onclick="window.app.updateStyle('textAlign', 'left')">⬅ Left</button>
+            <button class="format-btn ${style.textAlign === 'center' ? 'active' : ''}" onclick="window.app.updateStyle('textAlign', 'center')">⏺ Center</button>
+            <button class="format-btn ${style.textAlign === 'right' ? 'active' : ''}" onclick="window.app.updateStyle('textAlign', 'right')">Right ➡️</button>
+          </div>
+        </div>
+
+        <div class="prop-row" style="flex-direction: column; align-items: stretch; gap: 4px; margin-top: 8px;">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <span class="prop-label">Text Color</span>
+            <input type="color" class="prop-color-input" value="${style.color || '#0F172A'}" onchange="window.app.updateStyle('color', this.value)" />
+          </div>
+          ${renderColorSwatches(style.color || '#0F172A', 'updateTextColor')}
         </div>
       </div>
     `;
   } else if (el.type === 'shape') {
     typeSpecific = `
       <div class="prop-section">
-        <div class="prop-section-title">Shape</div>
-        <div class="prop-row">
-          <span class="prop-label">Fill</span>
-          <input type="color" class="prop-color-input" value="${style.bgColor || '#2563EB'}" onchange="window.app.updateStyle('bgColor', this.value)" />
-          <input type="text" class="prop-input" value="${style.bgColor || '#2563EB'}" onchange="window.app.updateStyle('bgColor', this.value)" />
+        <div class="prop-section-title">Shape Type</div>
+        <div class="shape-picker-grid">
+          <button class="shape-picker-item ${(el.shapeType || 'rect') === 'rect' ? 'active' : ''}" title="Rectangle" onclick="window.app.updateShapeType('rect')">⬛</button>
+          <button class="shape-picker-item ${el.shapeType === 'circle' ? 'active' : ''}" title="Circle" onclick="window.app.updateShapeType('circle')">🟡</button>
+          <button class="shape-picker-item ${el.shapeType === 'triangle' ? 'active' : ''}" title="Triangle" onclick="window.app.updateShapeType('triangle')">🔺</button>
+          <button class="shape-picker-item ${el.shapeType === 'star' ? 'active' : ''}" title="Star" onclick="window.app.updateShapeType('star')">⭐</button>
+          <button class="shape-picker-item ${el.shapeType === 'diamond' ? 'active' : ''}" title="Diamond" onclick="window.app.updateShapeType('diamond')">◆</button>
+          <button class="shape-picker-item ${el.shapeType === 'arrow' ? 'active' : ''}" title="Arrow" onclick="window.app.updateShapeType('arrow')">➔</button>
+          <button class="shape-picker-item ${el.shapeType === 'line' ? 'active' : ''}" title="Line" onclick="window.app.updateShapeType('line')">➖</button>
+        </div>
+      </div>
+
+      <div class="prop-section">
+        <div class="prop-section-title">Fill & Style</div>
+        <div class="prop-row" style="flex-direction: column; align-items: stretch; gap: 4px;">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <span class="prop-label">Fill Color</span>
+            <input type="color" class="prop-color-input" value="${style.bgColor || '#2563EB'}" onchange="window.app.updateStyle('bgColor', this.value)" />
+          </div>
+          ${renderColorSwatches(style.bgColor || '#2563EB', 'updateShapeColor')}
+        </div>
+
+        <div class="prop-row" style="margin-top: 8px;">
+          <span class="prop-label">Radius</span>
+          <input type="range" class="prop-slider" min="0" max="40" value="${style.borderRadius || 8}" oninput="window.app.updateStyle('borderRadius', parseInt(this.value))" />
         </div>
         <div class="prop-row">
-          <span class="prop-label">Rad</span>
-          <input type="range" class="prop-slider" min="0" max="100" value="${style.borderRadius || 8}" oninput="window.app.updateStyle('borderRadius', parseInt(this.value))" />
-        </div>
-        <div class="prop-row">
-          <span class="prop-label">Opa</span>
+          <span class="prop-label">Opacity</span>
           <input type="range" class="prop-slider" min="0" max="100" value="${(style.opacity ?? 1) * 100}" oninput="window.app.updateStyle('opacity', parseInt(this.value) / 100)" />
         </div>
       </div>
@@ -1159,6 +1258,43 @@ window.app = {
       updateThumbnailsDebounced();
       updateCanvasOnly();
     }
+  },
+
+  toggleShapeMenu() {
+    state.shapeMenuOpen = !state.shapeMenuOpen;
+    renderAppShell();
+  },
+
+  async addShape(shapeType) {
+    state.shapeMenuOpen = false;
+    state.deck = await AddShapeElement(state.currentSlide, shapeType);
+    const slide = getCurrentSlide();
+    state.selectedElement = slide.elements[slide.elements.length - 1].id;
+    renderAppShell();
+  },
+
+  async stepFontSize(delta) {
+    const el = getSelectedElement();
+    if (!el || el.type !== 'text') return;
+    const current = el.style?.fontSize || 24;
+    const next = Math.max(12, Math.min(120, current + delta));
+    window.app.updateStyle('fontSize', next);
+  },
+
+  async updateTextColor(color) {
+    window.app.updateStyle('color', color);
+  },
+
+  async updateShapeColor(color) {
+    window.app.updateStyle('bgColor', color);
+  },
+
+  async updateShapeType(shapeType) {
+    const el = getSelectedElement();
+    if (!el) return;
+    el.shapeType = shapeType;
+    state.deck = await UpdateElement(state.currentSlide, el);
+    updateCanvasOnly();
   },
 
   // Property updates
