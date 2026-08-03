@@ -87,8 +87,8 @@ function renderAppShell() {
       ${renderSidebar()}
       <div class="canvas-area" id="canvasArea">
         ${renderToolbar()}
-        <div class="canvas-wrapper" id="canvasWrapper">
-          <div class="slide-canvas" id="slideCanvas" style="background: ${getCurrentSlide().bgColor || '#0F172A'}; transform: scale(${state.canvasScale});">
+        <div class="canvas-wrapper" id="canvasWrapper" style="transform: scale(${state.canvasScale});">
+          <div class="slide-canvas" id="slideCanvas" style="background: ${getCurrentSlide().bgColor || '#FFFFFF'};">
             ${renderSlideElements()}
           </div>
         </div>
@@ -539,14 +539,14 @@ function renderPresentMode() {
 
   return `
     <div class="present-overlay" id="presentOverlay">
-      <div class="present-slide" style="width: 960px; height: 540px; transform: scale(${scale}); transform-origin: center center; background: ${slide.bgColor || '#0F172A'};">
+      <div class="present-slide" style="width: 960px; height: 540px; transform: scale(${scale}); transform-origin: center center; background: ${slide.bgColor || '#FFFFFF'};">
         ${(slide.elements || []).map(el => {
           const pos = el.position;
           const style = el.style || {};
           let content = '';
           switch (el.type) {
             case 'text':
-              content = `<div style="font-size: ${style.fontSize || 24}px; font-weight: ${style.fontWeight || 'normal'}; color: ${style.color || '#F8FAFC'}; text-align: ${style.textAlign || 'left'}; font-family: ${style.fontFamily || 'Inter'}, sans-serif; line-height: ${style.lineHeight || 1.4}; width: 100%; height: 100%;">${el.content}</div>`;
+              content = `<div style="font-size: ${style.fontSize || 24}px; font-weight: ${style.fontWeight || 'normal'}; color: ${style.color || '#0F172A'}; text-align: ${style.textAlign || 'left'}; font-family: ${style.fontFamily || 'Inter'}, sans-serif; line-height: ${style.lineHeight || 1.4}; width: 100%; height: 100%;">${el.content}</div>`;
               break;
             case 'shape':
               const radius = el.shapeType === 'circle' ? '50%' : `${style.borderRadius || 8}px`;
@@ -698,19 +698,14 @@ function updateCanvasScale() {
   const wrapper = document.getElementById('canvasWrapper');
   if (!area || !wrapper) return;
 
-  const padding = 100;
+  const padding = 80;
   const availW = area.clientWidth - padding;
   const availH = area.clientHeight - padding;
   const scaleX = availW / 960;
   const scaleY = availH / 540;
   state.canvasScale = Math.min(scaleX, scaleY, 1);
 
-  const canvas = document.getElementById('slideCanvas');
-  if (canvas) {
-    canvas.style.transform = `scale(${state.canvasScale})`;
-    wrapper.style.width = `${960 * state.canvasScale}px`;
-    wrapper.style.height = `${540 * state.canvasScale}px`;
-  }
+  wrapper.style.transform = `scale(${state.canvasScale})`;
 }
 
 // ─── Thumbnails (Debounced) ────────────────────────────────────────
@@ -728,7 +723,7 @@ function updateThumbnails() {
     const ctx = canvas.getContext('2d');
     const scale = 192 / 960;
 
-    ctx.fillStyle = slide.bgColor || '#0F172A';
+    ctx.fillStyle = slide.bgColor || '#FFFFFF';
     ctx.fillRect(0, 0, 192, 108);
 
     (slide.elements || []).forEach(el => {
@@ -738,7 +733,7 @@ function updateThumbnails() {
       const h = el.position.h * scale;
 
       if (el.type === 'text') {
-        ctx.fillStyle = el.style?.color || '#F8FAFC';
+        ctx.fillStyle = el.style?.color || '#0F172A';
         const fontSize = Math.max(4, (el.style?.fontSize || 24) * scale);
         ctx.font = `${el.style?.fontWeight || 'normal'} ${fontSize}px Inter, sans-serif`;
         ctx.textAlign = el.style?.textAlign || 'left';
@@ -752,7 +747,7 @@ function updateThumbnails() {
         ctx.fill();
         ctx.globalAlpha = 1;
       } else if (el.type === 'code') {
-        ctx.fillStyle = el.style?.bgColor || '#1E293B';
+        ctx.fillStyle = el.style?.bgColor || '#F1F5F9';
         const r = Math.min((el.style?.borderRadius || 12) * scale, w / 2, h / 2);
         roundRect(ctx, x, y, w, h, r);
         ctx.fill();

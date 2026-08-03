@@ -203,8 +203,9 @@ func NewDeck() Deck {
 		Theme: DefaultTheme(),
 		Slides: []Slide{
 			{
-				ID:     generateID("slide"),
-				Layout: "title",
+				ID:      generateID("slide"),
+				Layout:  "title",
+				BgColor: "#FFFFFF",
 				Elements: []Element{
 					{
 						ID:      generateID("el"),
@@ -239,7 +240,6 @@ func NewDeck() Deck {
 						ZIndex: 2,
 					},
 				},
-				BgColor: "#FFFFFF",
 			},
 		},
 	}
