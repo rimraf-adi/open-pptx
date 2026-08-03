@@ -154,25 +154,46 @@ type GeneratedDeckJSON struct {
 
 // ProcessPromptStream handles any prompt with SSE streaming.
 func (a *Agent) ProcessPromptStream(ctx context.Context, currentDeck *engine.Deck, currentSlideIdx int, prompt string, callback func(chunk StreamChunk)) (*AIResponseEnvelope, error) {
+	if currentSlideIdx < 0 || currentSlideIdx >= len(currentDeck.Slides) {
+		currentSlideIdx = 0
+	}
+
+	var slidesOutline []string
+	for i, s := range currentDeck.Slides {
+		title := fmt.Sprintf("Slide %d", i+1)
+		for _, el := range s.Elements {
+			if el.Type == "text" && (el.Style.FontSize >= 28 || el.Style.FontWeight == "bold") {
+				title = fmt.Sprintf("Slide %d: \"%s\"", i+1, el.Content)
+				break
+			}
+		}
+		slidesOutline = append(slidesOutline, title)
+	}
+	slidesOutlineStr := strings.Join(slidesOutline, "\n")
+
 	currentSlideJSON, _ := json.Marshal(currentDeck.Slides[currentSlideIdx])
 	deckMetaJSON, _ := json.Marshal(currentDeck.Meta)
 
 	slideCount := len(currentDeck.Slides)
 	userPrompt := fmt.Sprintf(`Deck Meta: %s
-Total slides: %d | Current Slide: %d (1-based)
-Current Slide JSON: %s
+Total slides: %d | Targeted Slide Index: %d (1-based)
+
+All Slides Outline Index:
+%s
+
+Targeted Slide [%d] JSON: %s
 
 User Request: "%s"
 
-IMPORTANT:
-- If the user asks for a deck/presentation/pitch, use "generate_deck" with 5-8 well-designed slides.
+IMPORTANT SLIDE TAGGING & SELECTION RULES:
+- If the user prompt mentions @slide1, @slide2, @slideN etc., target that specific slide for "edit_slide".
+- If the user asks for a full deck/presentation/pitch, use "generate_deck" with 5-8 well-designed slides.
 - If the user wants one new slide, use "add_slide".
-- If the user wants to modify the current slide, use "edit_slide".
+- If editing a slide ("edit_slide"), return the complete slide with updated/repositioned elements.
 - Double-check that NO elements overlap. Calculate x,y,w,h carefully.
 - Every slide must have substantive content — not just a title and one bullet.
-- Use the exact layout templates from the system prompt.
 
-Return ONLY the JSON envelope.`, string(deckMetaJSON), slideCount, currentSlideIdx+1, string(currentSlideJSON), prompt)
+Return ONLY the JSON envelope.`, string(deckMetaJSON), slideCount, currentSlideIdx+1, slidesOutlineStr, currentSlideIdx+1, string(currentSlideJSON), prompt)
 
 	jsonStr, err := a.client.CompleteStream(ctx, systemPrompt, userPrompt, callback)
 	if err != nil {

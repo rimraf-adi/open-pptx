@@ -588,11 +588,11 @@ function renderQuickPromptMode() {
       <button class="ai-pill" onclick="window.app.sendAIPrompt('Create a 5-slide pitch deck for a startup')">🚀 Pitch Deck</button>
       <button class="ai-pill" onclick="window.app.sendAIPrompt('Add a slide comparing our pricing tiers')">💰 Pricing</button>
       <button class="ai-pill" onclick="window.app.sendAIPrompt('Add a slide showing high level architecture')">🏗️ Architecture</button>
-      <button class="ai-pill" onclick="window.app.sendAIPrompt('Make this slide more visually appealing')">✨ Beautify</button>
+      <button class="ai-pill" onclick="window.app.sendAIPrompt('@slide${state.currentSlide + 1} make this slide more visually appealing')">✨ Beautify Current</button>
     </div>
 
     <div class="ai-input-box">
-      <input class="ai-input" id="aiInput" type="text" placeholder="Ask AI to build slides..." onkeydown="if(event.key==='Enter') window.app.submitAIPrompt()" />
+      <input class="ai-input" id="aiInput" type="text" placeholder="Ask AI... use @slide3 to target a slide" onkeydown="if(event.key==='Enter') window.app.submitAIPrompt()" />
       <button class="ai-send-btn" onclick="window.app.submitAIPrompt()" ${state.aiLoading ? 'disabled' : ''}>Send</button>
     </div>
   `;
@@ -1214,8 +1214,18 @@ ${content}
     state.aiStreamingText = '';
     updateAIMessagesOnly();
 
+    // Parse @slide1, @slide2 etc. to target a specific slide
+    let targetSlide = state.currentSlide;
+    const slideTagMatch = promptText.match(/@slide\s*(\d+)/i);
+    if (slideTagMatch) {
+      const taggedIdx = parseInt(slideTagMatch[1], 10) - 1; // 1-based → 0-based
+      if (taggedIdx >= 0 && taggedIdx < state.deck.slides.length) {
+        targetSlide = taggedIdx;
+      }
+    }
+
     try {
-      const result = await ProcessAIPrompt(state.currentSlide, promptText);
+      const result = await ProcessAIPrompt(targetSlide, promptText);
       state.deck = result.deck;
 
       let responseMsg = '';
@@ -1231,8 +1241,9 @@ ${content}
           responseMsg = `✨ ${result.message || 'Added a new slide.'}`;
           break;
         case 'edit_slide':
+          state.currentSlide = targetSlide;
           state.selectedElement = null;
-          responseMsg = `✨ ${result.message || 'Updated the current slide.'}`;
+          responseMsg = `✨ ${result.message || `Updated slide ${targetSlide + 1}.`}`;
           break;
         default:
           responseMsg = `✨ ${result.message || 'Done.'}`;
