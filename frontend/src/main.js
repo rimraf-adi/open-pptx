@@ -794,8 +794,11 @@ function processDragFrame() {
   state.activeGuides = { h: null, v: null };
 
   if (state.isDragging) {
-    let newX = Math.round((state.mousePos.x - state.dragOffset.x) / scale);
-    let newY = Math.round((state.mousePos.y - state.dragOffset.y) / scale);
+    const currentCanvasX = (state.mousePos.x - rect.left) / scale;
+    const currentCanvasY = (state.mousePos.y - rect.top) / scale;
+
+    let newX = Math.round(currentCanvasX - state.dragOffset.x);
+    let newY = Math.round(currentCanvasY - state.dragOffset.y);
 
     // Smart Snapping Alignment Guidelines
     const snapThreshold = 6;
@@ -1095,10 +1098,15 @@ window.app = {
     const canvas = document.getElementById('slideCanvas');
     const rect = canvas.getBoundingClientRect();
     const scale = state.canvasScale;
+
+    const clickCanvasX = (e.clientX - rect.left) / scale;
+    const clickCanvasY = (e.clientY - rect.top) / scale;
+
     state.dragOffset = {
-      x: e.clientX - (el.position.x * scale + rect.left),
-      y: e.clientY - (el.position.y * scale + rect.top),
+      x: clickCanvasX - el.position.x,
+      y: clickCanvasY - el.position.y,
     };
+    updateCanvasOnly();
   },
 
   startResize(e, id, handle) {
