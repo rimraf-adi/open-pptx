@@ -2029,6 +2029,7 @@ ${content}
   // File operations
   async newDeck() {
     state.fileMenuOpen = false;
+    state.showHomescreen = false;
     state.deck = await NewDeck();
     state.currentSlide = 0;
     state.selectedElement = null;
@@ -2045,6 +2046,7 @@ ${content}
         state.currentSlide = 0;
         state.selectedElement = null;
         state.filePath = await GetFilePath();
+        state.showHomescreen = false;
         renderAppShell();
       }
     } catch (e) {
