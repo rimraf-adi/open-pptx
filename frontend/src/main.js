@@ -305,13 +305,13 @@ const clipartIcons = [
 function renderToolbar() {
   return `
     <div class="toolbar">
-      <button class="toolbar-btn" onclick="window.app.addElement('text')" data-tooltip="Text">
+      <button class="toolbar-btn" onclick="window.app.addElement('text')" title="Add Text Element">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>
         Text
       </button>
 
       <div class="toolbar-shape-wrapper">
-        <button class="toolbar-btn ${state.shapeMenuOpen ? 'active' : ''}" onclick="window.app.toggleShapeMenu()" data-tooltip="Shapes">
+        <button class="toolbar-btn ${state.shapeMenuOpen ? 'active' : ''}" onclick="window.app.toggleShapeMenu()" title="Insert Shape">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>
           Shapes ▾
         </button>
@@ -329,7 +329,7 @@ function renderToolbar() {
       </div>
 
       <div class="toolbar-image-wrapper">
-        <button class="toolbar-btn ${state.imageMenuOpen ? 'active' : ''}" onclick="window.app.toggleImageMenu()" data-tooltip="Image & Clipart">
+        <button class="toolbar-btn ${state.imageMenuOpen ? 'active' : ''}" onclick="window.app.toggleImageMenu()" title="Image & Clipart">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
           Image / Icon ▾
         </button>
@@ -354,19 +354,19 @@ function renderToolbar() {
         ` : ''}
       </div>
 
-      <button class="toolbar-btn" onclick="window.app.addElement('code')" data-tooltip="Code Block">
+      <button class="toolbar-btn" onclick="window.app.addElement('code')" title="Add Code Block">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
         Code
       </button>
       <div class="toolbar-sep"></div>
-      <button class="toolbar-btn" onclick="window.app.undo()" data-tooltip="Undo (⌘Z)">
+      <button class="toolbar-btn" onclick="window.app.undo()" title="Undo (⌘Z)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
       </button>
-      <button class="toolbar-btn" onclick="window.app.redo()" data-tooltip="Redo (⌘⇧Z)">
+      <button class="toolbar-btn" onclick="window.app.redo()" title="Redo (⌘⇧Z)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"/></svg>
       </button>
       <div class="toolbar-sep"></div>
-      <button class="toolbar-btn ${state.aiPanelOpen ? 'active' : ''}" onclick="window.app.toggleAIPanel()" data-tooltip="AI Co-pilot">
+      <button class="toolbar-btn ${state.aiPanelOpen ? 'active' : ''}" onclick="window.app.toggleAIPanel()" title="AI Co-pilot (⌘A)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z"/></svg>
         Ask AI
       </button>
