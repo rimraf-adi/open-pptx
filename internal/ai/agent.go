@@ -175,6 +175,13 @@ func (a *Agent) ProcessPromptStream(ctx context.Context, currentDeck *engine.Dec
 	deckMetaJSON, _ := json.Marshal(currentDeck.Meta)
 
 	slideCount := len(currentDeck.Slides)
+
+	// Cap prompt length at 12,000 characters (~3,000 tokens) to prevent TPM limit overflow
+	trimmedPrompt := prompt
+	if len(trimmedPrompt) > 12000 {
+		trimmedPrompt = trimmedPrompt[:12000] + "\n\n[...content trimmed to fit AI rate limits...]"
+	}
+
 	userPrompt := fmt.Sprintf(`Deck Meta: %s
 Total slides: %d | Targeted Slide Index: %d (1-based)
 
@@ -193,7 +200,7 @@ IMPORTANT SLIDE TAGGING & SELECTION RULES:
 - Double-check that NO elements overlap. Calculate x,y,w,h carefully.
 - Every slide must have substantive content — not just a title and one bullet.
 
-Return ONLY the JSON envelope.`, string(deckMetaJSON), slideCount, currentSlideIdx+1, slidesOutlineStr, currentSlideIdx+1, string(currentSlideJSON), prompt)
+Return ONLY the JSON envelope.`, string(deckMetaJSON), slideCount, currentSlideIdx+1, slidesOutlineStr, currentSlideIdx+1, string(currentSlideJSON), trimmedPrompt)
 
 	jsonStr, err := a.client.CompleteStream(ctx, systemPrompt, userPrompt, callback)
 	if err != nil {

@@ -204,27 +204,43 @@ type StreamEventChunk struct {
 	} `json:"choices"`
 }
 
-// CompleteStream streams reasoning and content with key rotation retries.
+// CompleteStream streams reasoning and content with key rotation and model fallback retries.
 func (c *Client) CompleteStream(ctx context.Context, systemPrompt, userPrompt string, callback func(chunk StreamChunk)) (string, error) {
 	if c.config.Provider == "groq" {
 		keys := getGroqKeyList()
 		if len(keys) == 0 {
 			return "", fmt.Errorf("no Groq API keys found in .env")
 		}
+
+		// Fallback models for Groq if primary model (e.g. 70b) hits TPM rate limit (413/429)
+		modelsToTry := []string{c.config.Model, "llama-3.1-8b-instant"}
+		if c.config.Model == "llama-3.1-8b-instant" {
+			modelsToTry = []string{"llama-3.1-8b-instant"}
+		}
+
 		var lastErr error
-		// Rotate through keys on failure/rate-limit
-		for i := 0; i < len(keys); i++ {
-			apiKey := getNextGroqKey()
-			res, err := c.completeStreamSingle(ctx, "groq", c.config.Model, apiKey, systemPrompt, userPrompt, callback)
-			if err == nil {
-				return res, nil
-			}
-			lastErr = err
-			if callback != nil {
-				callback(StreamChunk{Reasoning: fmt.Sprintf("\n[Key rotation: key %d rate-limited/failed, rotating to next key...]\n", i+1)})
+		for mIdx, model := range modelsToTry {
+			for i := 0; i < len(keys); i++ {
+				apiKey := getNextGroqKey()
+				res, err := c.completeStreamSingle(ctx, "groq", model, apiKey, systemPrompt, userPrompt, callback)
+				if err == nil {
+					return res, nil
+				}
+				lastErr = err
+
+				errMsg := err.Error()
+				if strings.Contains(errMsg, "413") || strings.Contains(errMsg, "429") || strings.Contains(errMsg, "rate_limit") {
+					if callback != nil {
+						if mIdx < len(modelsToTry)-1 {
+							callback(StreamChunk{Reasoning: fmt.Sprintf("\n[Groq %s rate-limited (413/429), switching key & falling back to %s (100k TPM limit)...]\n", model, modelsToTry[mIdx+1])})
+						} else {
+							callback(StreamChunk{Reasoning: fmt.Sprintf("\n[Groq key %d rate-limited, rotating key...]\n", i+1)})
+						}
+					}
+				}
 			}
 		}
-		return "", fmt.Errorf("all Groq API keys failed: %w", lastErr)
+		return "", fmt.Errorf("all Groq API keys and model fallbacks failed: %w", lastErr)
 	}
 
 	apiKey := c.config.APIKey
