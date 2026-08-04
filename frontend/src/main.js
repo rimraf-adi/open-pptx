@@ -805,8 +805,7 @@ function renderHomescreen() {
       <!-- PowerPoint Left Navigation Rail -->
       <div class="pptx-nav-rail">
         <div class="pptx-nav-brand">
-          <img class="pptx-nav-logo" src="/logo.png" alt="open-pptx logo" />
-          <span class="pptx-nav-app-name">PowerPoint</span>
+          <span class="pptx-nav-app-name">open-pptx</span>
         </div>
 
         <div class="pptx-nav-menu">
